@@ -12,6 +12,7 @@ WINDOW_TITLE = os.getenv('WINDOW_TITLE', 'Default Title')
 WELCOME_MESSAGE = os.getenv('WELCOME_MESSAGE', 'Welcome!')
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
+
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
 
@@ -19,8 +20,12 @@ def show_welcome():
     clear_frame()
     welcome_label = tk.Label(main_frame, text=WELCOME_MESSAGE, font=("Arial", 24))
     welcome_label.pack(pady=20)
+    
+def show_coming_soon():
+    messagebox.showinfo("Coming Soon", "This feature is coming soon!")
 
-def open_todo_app():
+
+def open_tasks():
     clear_frame()
     create_todo_app()
 
@@ -76,6 +81,25 @@ def create_todo_app():
             context_menu.grab_release()
 
     tree.bind("<Button-3>", popup)  # Adjust "<Button-3>" as needed for macOS or other systems
+    
+    
+    def toggle_done(event):
+        column = tree.identify_column(event.x)
+        if column == "#2":  # Assuming "#2" is the "Done" column
+            item_id = tree.identify_row(event.y)
+            if item_id:  # Ensure item_id is not an empty string
+                task_info = db.collection('todos').document(item_id).get().to_dict()
+                if task_info:  # Additional check if task_info is successfully retrieved
+                    new_status = not task_info.get('done', False)
+                    update_data = {'done': new_status}
+                    if new_status:  # If marking as done, add the timestamp
+                        update_data['completed_date'] = firestore.SERVER_TIMESTAMP
+                    db.collection('todos').document(item_id).update(update_data)
+                    load_tasks()  # Reload tasks to reflect changes
+
+    
+    tree.bind("<Button-1>", toggle_done)
+    
 
     def delete_task():
         selected_item = tree.selection()
@@ -96,11 +120,14 @@ def create_todo_app():
             done = 'Yes' if doc.to_dict().get('done') else 'No'
             completed_date = doc.to_dict().get('completed_date', '')
             tree.insert("", tk.END, values=(task, done, completed_date), iid=doc.id)
+            
+        
 
     load_tasks()
 
 root = tk.Tk()
 root.title(WINDOW_TITLE)
+root.geometry(f"{os.getenv('WINDOW_WIDTH', '800')}x{os.getenv('WINDOW_HEIGHT', '600')}")
 root.attributes('-fullscreen', False)
 root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
 
@@ -109,10 +136,38 @@ root.config(menu=menu_bar)
 
 file_menu = Menu(menu_bar, tearoff=0)
 file_menu.add_command(label="Welcome", command=show_welcome)
-file_menu.add_command(label="Tasks", command=open_todo_app)
+file_menu.add_command(label="Tasks", command=open_tasks)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
 menu_bar.add_cascade(label="File", menu=file_menu)
+
+
+# Edit Menu
+edit_menu = Menu(menu_bar, tearoff=0)
+edit_menu.add_command(label="Undo", command=show_coming_soon)
+edit_menu.add_command(label="Redo", command=show_coming_soon)
+menu_bar.add_cascade(label="Edit", menu=edit_menu)
+
+# Reports Menu
+reports_menu = Menu(menu_bar, tearoff=0)
+reports_menu.add_command(label="Monthly Report", command=show_coming_soon)
+reports_menu.add_command(label="Annual Report", command=show_coming_soon)
+menu_bar.add_cascade(label="Reports", menu=reports_menu)
+
+# AI Menu
+ai_menu = Menu(menu_bar, tearoff=0)
+ai_menu.add_command(label="Data Analysis", command=show_coming_soon)
+ai_menu.add_command(label="Predictive Maintenance", command=show_coming_soon)
+menu_bar.add_cascade(label="AI", menu=ai_menu)
+
+# Help Menu
+help_menu = Menu(menu_bar, tearoff=0)
+help_menu.add_command(label="Documentation", command=show_coming_soon)
+help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", "IT Consulting Control Center\nVersion 1.0"))
+menu_bar.add_cascade(label="Help", menu=help_menu)
+
+
+
 
 main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True)
