@@ -202,7 +202,7 @@ menu_bar.add_cascade(label="AI", menu=ai_menu)
 # Help Menu
 help_menu = Menu(menu_bar, tearoff=0)
 help_menu.add_command(label="Documentation", command=show_coming_soon)
-help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", "IT Consulting Control Center\nVersion 1.0"))
+help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", os.getenv('ABOUT_MESSAGE', 'Control center demo app for a Consulting Company')))
 menu_bar.add_cascade(label="Help", menu=help_menu)
 
 # Create a toolbar frame
