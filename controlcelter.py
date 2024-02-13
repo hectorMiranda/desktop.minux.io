@@ -13,13 +13,38 @@ WELCOME_MESSAGE = os.getenv('WELCOME_MESSAGE', 'Welcome!')
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
 
+
+
+
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
 
 def show_welcome():
     clear_frame()
-    welcome_label = tk.Label(main_frame, text=WELCOME_MESSAGE, font=("Arial", 24))
-    welcome_label.pack(pady=20)
+
+    # Assuming a grid layout of 2x3 for simplicity
+    rows, cols = 2, 3
+    for index, item in enumerate(dashboard_items):
+        row, col = divmod(index, cols)
+        img = tk.PhotoImage(file=item["icon"])  # Load the icon
+        # Button with icon
+        btn = tk.Button(main_frame, image=img, command=item["action"])
+        btn.image = img  # Keep a reference
+        btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+    # Adjust grid weights to expand cells to available space
+    for i in range(rows):
+        main_frame.rowconfigure(i, weight=1)
+    for j in range(cols):
+        main_frame.columnconfigure(j, weight=1)
+        
+dashboard_items = [
+    {"name": "File", "icon": "icons/file.png", "action": show_welcome},
+    {"name": "Edit", "icon": "icons/edit.png", "action": lambda: messagebox.showinfo("Edit", "Coming Soon")},
+    {"name": "Reports", "icon": "icons/reports.png", "action": lambda: messagebox.showinfo("Reports", "Coming Soon")},
+    {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
+    {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
+]
     
 def show_coming_soon():
     messagebox.showinfo("Coming Soon", "This feature is coming soon!")
