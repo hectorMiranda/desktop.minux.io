@@ -26,7 +26,7 @@ def show_welcome():
     rows, cols = 2, 3
     for index, item in enumerate(dashboard_items):
         row, col = divmod(index, cols)
-        img = tk.PhotoImage(file=item["icon"])  # Load the icon
+        img = tk.PhotoImage(file=item["icon"]).subsample(3, 3)  
         # Button with icon
         btn = tk.Button(main_frame, image=img, command=item["action"])
         btn.image = img  # Keep a reference
@@ -38,13 +38,7 @@ def show_welcome():
     for j in range(cols):
         main_frame.columnconfigure(j, weight=1)
         
-dashboard_items = [
-    {"name": "File", "icon": "icons/file.png", "action": show_welcome},
-    {"name": "Edit", "icon": "icons/edit.png", "action": lambda: messagebox.showinfo("Edit", "Coming Soon")},
-    {"name": "Reports", "icon": "icons/reports.png", "action": lambda: messagebox.showinfo("Reports", "Coming Soon")},
-    {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
-    {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
-]
+
     
 def show_coming_soon():
     messagebox.showinfo("Coming Soon", "This feature is coming soon!")
@@ -150,6 +144,26 @@ def create_todo_app():
 
     load_tasks()
 
+
+def navigate_to_dashboard(index):
+    dashboard_items[index]["action"]()
+
+def create_toolbar(toolbar_frame):
+    for index, item in enumerate(dashboard_items):
+        img = tk.PhotoImage(file=item["icon"]).subsample(10, 10)  # Adjust subsample factors to fit your toolbar
+        btn = tk.Button(toolbar_frame, image=img, command=lambda idx=index: navigate_to_dashboard(idx))
+        btn.image = img
+        btn.grid(row=0, column=index, padx=10, pady=5)
+        
+dashboard_items = [
+    {"name": "File", "icon": "icons/file.png", "action": show_welcome},
+    {"name": "Edit", "icon": "icons/edit.png", "action": open_tasks},
+    {"name": "Reports", "icon": "icons/reports.png", "action": lambda: messagebox.showinfo("Reports", "Coming Soon")},
+    {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
+    {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
+]
+
+
 root = tk.Tk()
 root.title(WINDOW_TITLE)
 root.geometry(f"{os.getenv('WINDOW_WIDTH', '800')}x{os.getenv('WINDOW_HEIGHT', '600')}")
@@ -191,7 +205,12 @@ help_menu.add_command(label="Documentation", command=show_coming_soon)
 help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", "IT Consulting Control Center\nVersion 1.0"))
 menu_bar.add_cascade(label="Help", menu=help_menu)
 
+# Create a toolbar frame
+toolbar_frame = tk.Frame(root)
+toolbar_frame.pack(side="top", fill="x")
 
+# Create the toolbar
+create_toolbar(toolbar_frame)
 
 
 main_frame = tk.Frame(root)
