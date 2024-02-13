@@ -27,14 +27,24 @@ def create_todo_app():
     task_entry = tk.Entry(main_frame, textvariable=task_var, width=45)
     task_entry.pack(pady=10)
 
+    # Creating a frame for the Treeview and Scrollbar
+    tree_frame = tk.Frame(main_frame)
+    tree_frame.pack(expand=True, fill="both", pady=10)
+
     columns = ("task", "done", "completed_date")
-    tree = ttk.Treeview(main_frame, columns=columns, show="headings")
+    tree = ttk.Treeview(tree_frame, columns=columns, show="headings")
     tree.heading("task", text="Task")
     tree.heading("done", text="Done")
     tree.heading("completed_date", text="Completed Date")
     tree.column("done", width=50, anchor="center")
     tree.column("completed_date", width=100, anchor="center")
-    tree.pack(expand=True, fill="both", pady=10)
+
+    # Scrollbar
+    vscroll = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+    vscroll.pack(side="right", fill="y")
+    tree.configure(yscrollcommand=vscroll.set)
+
+    tree.pack(expand=True, fill="both")
 
     def load_tasks():
         docs = db.collection('todos').stream()
