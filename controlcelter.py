@@ -3,15 +3,21 @@ from tkinter import ttk, messagebox, Menu
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
+import os
+from dotenv import load_dotenv
 
-# Initialize Firebase Admin SDK
-cred = credentials.Certificate("service_account_key.json")
-firebase_admin.initialize_app(cred)
+load_dotenv()
+
+WINDOW_TITLE = os.getenv('WINDOW_TITLE', 'Default Title')
+WELCOME_MESSAGE = os.getenv('WELCOME_MESSAGE', 'Welcome!')
+SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
+
+firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
 
 def show_welcome():
     clear_frame()
-    welcome_label = tk.Label(main_frame, text="Welcome to the Control Center", font=("Arial", 24))
+    welcome_label = tk.Label(main_frame, text=WELCOME_MESSAGE, font=("Arial", 24))
     welcome_label.pack(pady=20)
 
 def open_todo_app():
@@ -94,7 +100,7 @@ def create_todo_app():
     load_tasks()
 
 root = tk.Tk()
-root.title("Control Center")
+root.title(WINDOW_TITLE)
 root.attributes('-fullscreen', False)
 root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
 
@@ -103,7 +109,7 @@ root.config(menu=menu_bar)
 
 file_menu = Menu(menu_bar, tearoff=0)
 file_menu.add_command(label="Welcome", command=show_welcome)
-file_menu.add_command(label="Open To-Do App", command=open_todo_app)
+file_menu.add_command(label="Tasks", command=open_todo_app)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
 menu_bar.add_cascade(label="File", menu=file_menu)
