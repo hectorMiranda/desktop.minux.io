@@ -156,8 +156,8 @@ def create_toolbar(toolbar_frame):
         btn.grid(row=0, column=index, padx=10, pady=5)
         
 dashboard_items = [
-    {"name": "File", "icon": "icons/file.png", "action": show_welcome},
-    {"name": "Edit", "icon": "icons/edit.png", "action": open_tasks},
+    {"name": "Home", "icon": "icons/home.png", "action": show_welcome},
+    {"name": "Tasks", "icon": "icons/tasks.png", "action": open_tasks},
     {"name": "Reports", "icon": "icons/reports.png", "action": lambda: messagebox.showinfo("Reports", "Coming Soon")},
     {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
     {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
