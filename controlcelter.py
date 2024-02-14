@@ -10,6 +10,7 @@ import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+import random
 
 
 
@@ -39,12 +40,43 @@ def show_map_qt(map_file):
 def show_map():
     clear_frame()
 
-    # Create a map centered at a specific latitude and longitude
-    m = folium.Map(location=[0, 0], zoom_start=2)
+    # Center the map on the state of Veracruz
+    veracruz_center = [19.1723, -96.1332]
+    m = folium.Map(location=veracruz_center, zoom_start=8)
 
-    # Add markers with red icons at specific locations
-    folium.Marker([51.5074, -0.1278], popup='London', icon=folium.Icon(color='red')).add_to(m)
-    folium.Marker([40.7128, -74.0060], popup='New York', icon=folium.Icon(color='red')).add_to(m)
+    # Top 20 most important cities in the state of Veracruz, Mexico
+
+    cities = [
+        {"name": "Veracruz", "coordinates": [19.173773, -96.134224]},
+        {"name": "Xalapa", "coordinates": [19.543775, -96.910181]},
+        {"name": "Coatzacoalcos", "coordinates": [18.134478, -94.458986]},
+        {"name": "Poza Rica", "coordinates": [20.533153, -97.459461]},
+        {"name": "Orizaba", "coordinates": [18.847231, -97.099754]},
+        {"name": "Córdoba", "coordinates": [18.894303, -96.935250]},
+        {"name": "Minatitlán", "coordinates": [17.989169, -94.558586]},
+        {"name": "Papantla", "coordinates": [20.456698, -97.315270]},
+        {"name": "San Andrés Tuxtla", "coordinates": [18.443051, -95.213547]},
+        {"name": "Tuxpan", "coordinates": [20.956928, -97.407086]},
+        {"name": "Martínez de la Torre", "coordinates": [20.070123, -97.060198]},
+        {"name": "Boca del Río", "coordinates": [19.100533, -96.106003]},
+        {"name": "Cosamaloapan", "coordinates": [18.360296, -95.797776]},
+        {"name": "Coatepec", "coordinates": [19.452098, -96.961444]},
+        {"name": "Tierra Blanca", "coordinates": [18.455750, -96.350240]},
+        {"name": "Alvarado", "coordinates": [18.775949, -95.764993]},
+        {"name": "Acayucan", "coordinates": [17.950141, -94.914499]},
+        {"name": "Perote", "coordinates": [19.566519, -97.239818]},
+        {"name": "Panuco", "coordinates": [22.052490, -98.188745]},
+        {"name": "Fortín", "coordinates": [18.898176, -96.991195]},
+    ]
+
+    for city in cities:
+        completion_percentage = random.randint(0, 100)  # Generate a random completion percentage
+        popup_text = f"{city['name']} - Completion: {completion_percentage}%"
+        folium.Marker(
+            city["coordinates"], 
+            popup=popup_text, 
+            icon=folium.Icon(color='red')
+        ).add_to(m)
 
     # Save the map as an HTML file
     map_file = 'map.html'
