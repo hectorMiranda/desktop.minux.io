@@ -5,6 +5,9 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
+import folium
+from tkinterweb import HtmlFrame
+
 
 load_dotenv()
 
@@ -18,6 +21,28 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
+
+def show_map():
+    clear_frame()
+
+    # Create a map centered at a specific latitude and longitude
+    m = folium.Map(location=[0, 0], zoom_start=2)
+
+    # Add markers with red icons at specific locations
+    folium.Marker([51.5074, -0.1278], popup='London', icon=folium.Icon(color='red')).add_to(m)
+    folium.Marker([40.7128, -74.0060], popup='New York', icon=folium.Icon(color='red')).add_to(m)
+
+    # Save the map as an HTML file
+    map_file = 'map.html'
+    m.save(map_file)
+
+    # Display the map in a TkinterWeb HtmlFrame
+    map_frame = HtmlFrame(main_frame)
+    map_frame.load_file(os.path.abspath(map_file))
+    map_frame.pack(fill=tk.BOTH, expand=True)
+
+
+
 
 def show_welcome():
     clear_frame()
@@ -158,7 +183,7 @@ def create_toolbar(toolbar_frame):
 dashboard_items = [
     {"name": "Home", "icon": "icons/home.png", "action": show_welcome},
     {"name": "Tasks", "icon": "icons/tasks.png", "action": open_tasks},
-    {"name": "Reports", "icon": "icons/reports.png", "action": lambda: messagebox.showinfo("Reports", "Coming Soon")},
+    {"name": "Maps", "icon": "icons/reports.png", "action": show_map},
     {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
     {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
 ]
