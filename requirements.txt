@@ -1,6 +1,4 @@
-wheel
-tkinter
 firebase-admin
 python-dotenv
 folium
-tkinterweb
+pywebview

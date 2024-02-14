@@ -6,7 +6,7 @@ from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
 import folium
-from tkinterweb import HtmlFrame
+
 
 
 load_dotenv()
@@ -36,10 +36,11 @@ def show_map():
     map_file = 'map.html'
     m.save(map_file)
 
-    # Display the map in a TkinterWeb HtmlFrame
-    map_frame = HtmlFrame(main_frame)
-    map_frame.load_file(os.path.abspath(map_file))
-    map_frame.pack(fill=tk.BOTH, expand=True)
+    # Use webview to display the map
+    import webview
+    webview.create_window('Map', os.path.abspath(map_file))
+    webview.start()
+
 
 
 
