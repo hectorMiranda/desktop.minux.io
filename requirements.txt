@@ -1,4 +1,5 @@
 firebase-admin
 python-dotenv
 folium
-pywebview
+PyQt5
+PyQtWebEngine

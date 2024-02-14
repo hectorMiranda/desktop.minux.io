@@ -6,6 +6,10 @@ from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
 import folium
+import threading
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtCore import QUrl
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 
 
@@ -22,6 +26,16 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
 
+
+def show_map_qt(map_file):
+    app = QApplication([])
+    main_window = QMainWindow()
+    web_view = QWebEngineView()
+    web_view.load(QUrl.fromLocalFile(os.path.abspath(map_file)))
+    main_window.setCentralWidget(web_view)
+    main_window.show()
+    app.exec_()
+    
 def show_map():
     clear_frame()
 
@@ -36,11 +50,8 @@ def show_map():
     map_file = 'map.html'
     m.save(map_file)
 
-    # Use webview to display the map
-    import webview
-    webview.create_window('Map', os.path.abspath(map_file))
-    webview.start()
-
+    # Use PyQt5 to display the map
+    show_map_qt(map_file)
 
 
 
