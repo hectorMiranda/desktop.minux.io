@@ -12,6 +12,7 @@ from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import random
 
+qt_app = None
 
 
 load_dotenv()
@@ -29,13 +30,21 @@ db = firestore.client()
 
 
 def show_map_qt(map_file):
-    app = QApplication([])
+    global qt_app
+
+    if qt_app is None:
+        qt_app = QApplication([])
+    else:
+        # Close any existing windows before showing a new one
+        for widget in qt_app.topLevelWidgets():
+            widget.close()
+
     main_window = QMainWindow()
     web_view = QWebEngineView()
     web_view.load(QUrl.fromLocalFile(os.path.abspath(map_file)))
     main_window.setCentralWidget(web_view)
     main_window.show()
-    app.exec_()
+    qt_app.exec_()
     
 def show_map():
     clear_frame()
