@@ -11,6 +11,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import random
+import time
+from tkinter import Toplevel, Label, Button
+
 
 qt_app = None
 
@@ -27,6 +30,28 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
+
+
+
+def open_clock():
+    clear_frame()
+    
+    timer_window = Toplevel(root)
+    timer_window.title("Clock")
+    
+    timer_label = Label(timer_window, text="00:00:00", font=("Helvetica", 48))
+    timer_label.pack(pady=20)
+
+    def update_timer():
+        current_time = time.strftime("%H:%M:%S")
+        timer_label.config(text=current_time)
+        timer_window.after(1000, update_timer)
+    
+    update_timer()
+
+    close_button = Button(timer_window, text="Close", command=timer_window.destroy)
+    close_button.pack(pady=20)
+
 
 
 def show_map_qt(map_file):
@@ -239,7 +264,12 @@ dashboard_items = [
     {"name": "Maps", "icon": "icons/reports.png", "action": show_map},
     {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
     {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
+    {"name": "Clock", "icon": "icons/ai.png", "action": open_clock}
 ]
+
+
+
+
 
 
 root = tk.Tk()
