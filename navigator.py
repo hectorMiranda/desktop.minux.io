@@ -13,6 +13,8 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 import random
 import time
 from tkinter import Toplevel, Label, Button
+import pygame
+
 
 
 qt_app = None
@@ -25,12 +27,61 @@ WELCOME_MESSAGE = os.getenv('WELCOME_MESSAGE', 'Welcome!')
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
 
-
-
-
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
 
+
+def open_timer():
+    pygame.mixer.init()
+
+    alarm_sound = pygame.mixer.Sound("alarm.mp3")  # Ensure you have an 'alarm.wav' file in your project directory
+
+    clear_frame()
+
+    timer_window = Toplevel(root)
+    timer_window.title("Set Timer")
+
+    # Entry fields for hours, minutes, seconds
+    hours_var = tk.StringVar(timer_window, value='00')
+    minutes_var = tk.StringVar(timer_window, value='00')
+    seconds_var = tk.StringVar(timer_window, value='00')
+    
+    hours_entry = tk.Entry(timer_window, textvariable=hours_var, width=3)
+    minutes_entry = tk.Entry(timer_window, textvariable=minutes_var, width=3)
+    seconds_entry = tk.Entry(timer_window, textvariable=seconds_var, width=3)
+    
+    hours_entry.pack(side=tk.LEFT, padx=(10,2))
+    minutes_entry.pack(side=tk.LEFT, padx=2)
+    seconds_entry.pack(side=tk.LEFT, padx=(2,10))
+    
+    # Label to show the timer
+    timer_label = Label(timer_window, text="00:00:00", font=("Helvetica", 48))
+    timer_label.pack(pady=20)
+
+    # Function to update the timer
+    def countdown():
+        h = int(hours_entry.get())
+        m = int(minutes_entry.get())
+        s = int(seconds_entry.get())
+        total_seconds = h * 3600 + m * 60 + s
+        while total_seconds > -1:
+            mins, secs = divmod(total_seconds, 60)
+            hours = 0
+            if mins > 60:
+                hours, mins = divmod(mins, 60)
+
+            timer_label.config(text=f'{hours:02d}:{mins:02d}:{secs:02d}')
+            timer_window.update()
+            time.sleep(1)
+
+            if total_seconds == 0:
+                alarm_sound.play() 
+                messagebox.showinfo("Time up", "Your countdown has finished!")
+            total_seconds -= 1
+
+    # Button to start the countdown
+    start_button = Button(timer_window, text="Start Timer", command=lambda: threading.Thread(target=countdown).start())
+    start_button.pack(pady=20)
 
 
 def open_clock():
@@ -264,7 +315,9 @@ dashboard_items = [
     {"name": "Maps", "icon": "icons/reports.png", "action": show_map},
     {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
     {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
-    {"name": "Clock", "icon": "icons/ai.png", "action": open_clock}
+    {"name": "Clock", "icon": "icons/ai.png", "action": open_clock},
+    {"name": "Timer", "icon": "icons/ai.png", "action": open_timer}
+
 ]
 
 
