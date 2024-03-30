@@ -1,10 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, Menu
+from tkinter import ttk, messagebox, Menu, Toplevel, Scale, Label, Button
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
-from dotenv import load_dotenv
 import folium
 import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -12,9 +11,8 @@ from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import random
 import time
-from tkinter import Toplevel, Label, Button
 import pygame
-
+from dotenv import load_dotenv
 
 
 qt_app = None
@@ -29,6 +27,36 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
+
+def save_transparency(transparency):
+    with open('settings.txt', 'w') as file:
+        file.write(str(transparency))
+        
+def load_transparency():
+    try:
+        with open('settings.txt', 'r') as file:
+            return float(file.read())
+    except (FileNotFoundError, ValueError):
+        return 1.0  # Default transparency
+
+def update_transparency(value):
+    transparency = float(value)
+    root.attributes('-alpha', transparency)
+    save_transparency(transparency)
+
+def open_preferences():
+    preferences_window = Toplevel(root)
+    preferences_window.title("Preferences")
+    preferences_window.geometry("300x100")
+
+    transparency_label = tk.Label(preferences_window, text="Transparency:")
+    transparency_label.pack(pady=5)
+
+    transparency_scale = Scale(preferences_window, from_=0.1, to=1.0, resolution=0.01, orient=tk.HORIZONTAL, command=update_transparency)
+    transparency_scale.set(load_transparency())  # Set the initial value to the saved transparency
+    transparency_scale.pack()
+
+
 
 
 def open_timer():
@@ -331,6 +359,9 @@ root.geometry(f"{os.getenv('WINDOW_WIDTH', '800')}x{os.getenv('WINDOW_HEIGHT', '
 root.attributes('-fullscreen', False)
 root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
 
+root.attributes('-alpha', load_transparency())
+
+
 menu_bar = Menu(root)
 root.config(menu=menu_bar)
 
@@ -363,7 +394,8 @@ menu_bar.add_cascade(label="AI", menu=ai_menu)
 # Help Menu
 help_menu = Menu(menu_bar, tearoff=0)
 help_menu.add_command(label="Documentation", command=show_coming_soon)
-help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", os.getenv('ABOUT_MESSAGE', 'Control center demo app for a Consulting Company')))
+help_menu.add_command(label="Preferences", command=open_preferences)
+help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", os.getenv('ABOUT_MESSAGE', 'Control center')))
 menu_bar.add_cascade(label="Help", menu=help_menu)
 
 # Create a toolbar frame
