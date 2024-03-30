@@ -10,23 +10,24 @@ class App(customtkinter.CTk):
         super().__init__()
         self.title("Control Panel")
         self.geometry(f"{1100}x{580}")
-        self.state("zoomed")  # Add this line to start the window maximized
+        self.state("zoomed") 
 
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure((0, 1, 2), weight=1)
+        self.grid_rowconfigure((0, 2, 2), weight=2)
 
         self.sidebar_frame = customtkinter.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
-        self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="Marcetux", font=customtkinter.CTkFont(size=20, weight="bold"))
+        self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="Marcetux", font=customtkinter.CTkFont(size=40, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-        self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event)
+        self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event, text="Dashboard")
         self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
-        self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event)
+        self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event, text="Preferences")
         self.sidebar_button_2.grid(row=2, column=0, padx=20, pady=10)
-        self.sidebar_button_3 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event)
+        self.sidebar_button_3 = customtkinter.CTkButton(self.sidebar_frame, command=self.sidebar_button_event, text="Vault")
         self.sidebar_button_3.grid(row=3, column=0, padx=20, pady=10)
         self.appearance_mode_label = customtkinter.CTkLabel(self.sidebar_frame, text="Appearance Mode:", anchor="w")
         self.appearance_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0))
@@ -124,7 +125,7 @@ class App(customtkinter.CTk):
         self.scrollable_frame_switches[4].select()
         self.radio_button_3.configure(state="disabled")
         self.appearance_mode_optionemenu.set("Dark")
-        self.scaling_optionemenu.set("100%")
+        self.scaling_optionemenu.set("120%")
         self.optionmenu_1.set("CTkOptionmenu")
         self.combobox_1.set("CTkComboBox")
         self.slider_1.configure(command=self.progressbar_2.set)
@@ -134,6 +135,7 @@ class App(customtkinter.CTk):
         self.textbox.insert("0.0", "marcetux " * 20)
         self.seg_button_1.configure(values=["CTkSegmentedButton", "Value 2", "Value 3"])
         self.seg_button_1.set("Value 2")
+        customtkinter.set_widget_scaling(120/100)
 
     def open_input_dialog_event(self):
         dialog = customtkinter.CTkInputDialog(text="Type in a number:", title="Input")
