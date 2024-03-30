@@ -1,3 +1,4 @@
+import customtkinter as ctk
 import datetime
 import folium
 import os
@@ -11,20 +12,19 @@ from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import pygame
-import tkinter as tk
-from tkinter import Button, Entry, Label, Menu, Scale, Toplevel, ttk, messagebox
+from PIL import Image, ImageTk
 
 
+# Set the theme to dark
+ctk.set_appearance_mode("dark")  # Options: "System" (default), "Dark", "Light"
 
 qt_app = None
-
 
 load_dotenv()
 
 WINDOW_TITLE = os.getenv('WINDOW_TITLE', 'Default Title')
 WELCOME_MESSAGE = os.getenv('WELCOME_MESSAGE', 'Welcome!')
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
-
 
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
@@ -46,20 +46,47 @@ def update_transparency(value):
     save_transparency(transparency)
 
 def open_preferences():
-    preferences_window = Toplevel(root)
+    preferences_window = ctk.CTkToplevel(root)
     preferences_window.title("Preferences")
     preferences_window.geometry("300x100")
 
-    transparency_label = tk.Label(preferences_window, text="Transparency:")
+    transparency_label = ctk.CTkLabel(preferences_window, text="Transparency:")
     transparency_label.pack(pady=5)
 
-    transparency_scale = Scale(preferences_window, from_=0.1, to=1.0, resolution=0.01, orient=tk.HORIZONTAL, command=update_transparency)
+    transparency_scale = ctk.CTkSlider(preferences_window, from_=0.1, to=1.0, command=update_transparency)
     transparency_scale.set(load_transparency())  # Set the initial value to the saved transparency
     transparency_scale.pack()
+def clear_frame():
+    for widget in main_frame.winfo_children():
+        widget.destroy()
+    
 
 
+def show_welcome():
+    clear_frame()
+
+    rows, cols = 2, 3
+    for index, item in enumerate(dashboard_items):
+        row, col = divmod(index, cols)
+
+        # Load the image using PIL
+        pil_img = Image.open(item["icon"])
+        pil_img = pil_img.resize((50, 50), Image.Resampling.LANCZOS)  # Resize the image
+        img = ImageTk.PhotoImage(pil_img)
+
+        # Button with icon
+        btn = ctk.CTkButton(main_frame, image=img, command=item["action"])
+        btn.image = img  # Keep a reference
+        btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+    for i in range(rows):
+        main_frame.rowconfigure(i, weight=1)
+    for j in range(cols):
+        main_frame.columnconfigure(j, weight=1)
 
 
+        
+        
 def open_timer():
     pygame.mixer.init()
 
@@ -71,17 +98,17 @@ def open_timer():
     timer_window.title("Set Timer")
 
     # Entry fields for hours, minutes, seconds
-    hours_var = tk.StringVar(timer_window, value='00')
-    minutes_var = tk.StringVar(timer_window, value='00')
-    seconds_var = tk.StringVar(timer_window, value='00')
+    hours_var = ctk.StringVar(timer_window, value='00')
+    minutes_var = ctk.StringVar(timer_window, value='00')
+    seconds_var = ctk.StringVar(timer_window, value='00')
     
-    hours_entry = tk.Entry(timer_window, textvariable=hours_var, width=3)
-    minutes_entry = tk.Entry(timer_window, textvariable=minutes_var, width=3)
-    seconds_entry = tk.Entry(timer_window, textvariable=seconds_var, width=3)
+    hours_entry = ctk.Entry(timer_window, textvariable=hours_var, width=3)
+    minutes_entry = ctk.Entry(timer_window, textvariable=minutes_var, width=3)
+    seconds_entry = ctk.Entry(timer_window, textvariable=seconds_var, width=3)
     
-    hours_entry.pack(side=tk.LEFT, padx=(10,2))
-    minutes_entry.pack(side=tk.LEFT, padx=2)
-    seconds_entry.pack(side=tk.LEFT, padx=(2,10))
+    hours_entry.pack(side=ctk.LEFT, padx=(10,2))
+    minutes_entry.pack(side=ctk.LEFT, padx=2)
+    seconds_entry.pack(side=ctk.LEFT, padx=(2,10))
     
     # Label to show the timer
     timer_label = Label(timer_window, text="00:00:00", font=("Helvetica", 48))
@@ -199,32 +226,6 @@ def show_map():
     # Use PyQt5 to display the map
     show_map_qt(map_file)
 
-
-
-
-def show_welcome():
-    clear_frame()
-
-    # Assuming a grid layout of 2x3 for simplicity
-    rows, cols = 2, 3
-    for index, item in enumerate(dashboard_items):
-        row, col = divmod(index, cols)
-        img = tk.PhotoImage(file=item["icon"]).subsample(3, 3)  
-        # Button with icon
-        btn = tk.Button(main_frame, image=img, command=item["action"])
-        btn.image = img  # Keep a reference
-        btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
-
-    # Adjust grid weights to expand cells to available space
-    for i in range(rows):
-        main_frame.rowconfigure(i, weight=1)
-    for j in range(cols):
-        main_frame.columnconfigure(j, weight=1)
-        
-
-    
-def show_coming_soon():
-    messagebox.showinfo("Coming Soon", "This feature is coming soon!")
 
 
 def open_tasks():
@@ -350,66 +351,22 @@ dashboard_items = [
 ]
 
 
+# Other functions remain the same, but replace Tkinter widgets with CustomTkinter widgets (e.g., ctk.CTkButton, ctk.CTkLabel, etc.)
 
-
-
-
-root = tk.Tk()
+root = ctk.CTk()
 root.title(WINDOW_TITLE)
 root.geometry(f"{os.getenv('WINDOW_WIDTH', '800')}x{os.getenv('WINDOW_HEIGHT', '600')}")
 root.attributes('-fullscreen', False)
 root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
-
 root.attributes('-alpha', load_transparency())
 
+# Create the menu bar, file menu, etc. using CustomTkinter widgets
 
-menu_bar = Menu(root)
-root.config(menu=menu_bar)
-
-file_menu = Menu(menu_bar, tearoff=0)
-file_menu.add_command(label="Welcome", command=show_welcome)
-file_menu.add_command(label="Tasks", command=open_tasks)
-file_menu.add_separator()
-file_menu.add_command(label="Exit", command=root.quit)
-menu_bar.add_cascade(label="File", menu=file_menu)
-
-
-# Edit Menu
-edit_menu = Menu(menu_bar, tearoff=0)
-edit_menu.add_command(label="Undo", command=show_coming_soon)
-edit_menu.add_command(label="Redo", command=show_coming_soon)
-menu_bar.add_cascade(label="Edit", menu=edit_menu)
-
-# Reports Menu
-reports_menu = Menu(menu_bar, tearoff=0)
-reports_menu.add_command(label="Monthly Report", command=show_coming_soon)
-reports_menu.add_command(label="Annual Report", command=show_coming_soon)
-menu_bar.add_cascade(label="Reports", menu=reports_menu)
-
-# AI Menu
-ai_menu = Menu(menu_bar, tearoff=0)
-ai_menu.add_command(label="Data Analysis", command=show_coming_soon)
-ai_menu.add_command(label="Predictive Maintenance", command=show_coming_soon)
-menu_bar.add_cascade(label="AI", menu=ai_menu)
-
-# Help Menu
-help_menu = Menu(menu_bar, tearoff=0)
-help_menu.add_command(label="Documentation", command=show_coming_soon)
-help_menu.add_command(label="Preferences", command=open_preferences)
-help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", os.getenv('ABOUT_MESSAGE', 'Control center')))
-menu_bar.add_cascade(label="Help", menu=help_menu)
-
-# Create a toolbar frame
-toolbar_frame = tk.Frame(root)
-toolbar_frame.pack(side="top", fill="x")
-
-# Create the toolbar
-create_toolbar(toolbar_frame)
-
-
-main_frame = tk.Frame(root)
-main_frame.pack(fill=tk.BOTH, expand=True)
+main_frame = ctk.CTkFrame(root)
+main_frame.pack(fill="both", expand=True)
 
 show_welcome()
 
 root.mainloop()
+
+

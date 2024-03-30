@@ -3,3 +3,5 @@ python-dotenv
 folium
 PyQt5
 PyQtWebEngine
+pygame
+customtkinter
