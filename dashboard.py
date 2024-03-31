@@ -1,6 +1,8 @@
 import tkinter
 import tkinter.messagebox
 import customtkinter
+import platform
+
 
 customtkinter.set_appearance_mode("System") 
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue", "dark-green", "dark-red", "dark-orange", "dark-purple", "dark-gray", "light-blue", "light-green", "light-red", "light-orange", "light-purple", "light-gray"
@@ -10,8 +12,13 @@ class App(customtkinter.CTk):
         super().__init__()
         self.title("Control Panel")
         self.geometry(f"{1100}x{580}")
-        self.state("zoomed") 
-
+        
+        print(platform.system())
+        
+        if platform.system() == "Windows":
+            self.state("normal")
+        else:
+            self.attributes("-zoomed", True) 
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure((2, 3), weight=0)
