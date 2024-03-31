@@ -16,7 +16,7 @@ class App(customtkinter.CTk):
         print(platform.system())
         
         if platform.system() == "Windows":
-            self.state("normal")
+            self.state("zoomed")
         else:
             self.attributes("-zoomed", True) 
 
