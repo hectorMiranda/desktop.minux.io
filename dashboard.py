@@ -2,11 +2,10 @@ import tkinter
 import tkinter.messagebox
 import customtkinter
 import platform
-
+import datetime
 
 customtkinter.set_appearance_mode("System") 
-customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue", "dark-green", "dark-red", "dark-orange", "dark-purple", "dark-gray", "light-blue", "light-green", "light-red", "light-orange", "light-purple", "light-gray"
-
+customtkinter.set_default_color_theme("blue")  
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -24,6 +23,25 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure((0, 1, 2), weight=1)
         self.grid_rowconfigure((0, 2, 2), weight=2)
+        
+        # Create a status bar frame at the bottom
+        self.status_bar_frame = customtkinter.CTkFrame(self, height=30, fg_color="gray")
+        self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
+        self.status_bar_frame.grid_propagate(False)
+
+        # Configure the second column of the status bar frame to expand
+        self.status_bar_frame.grid_columnconfigure(1, weight=1)
+
+        # Create a label in the status bar frame to display the time, aligned to the right
+        self.status_bar_label = customtkinter.CTkLabel(self.status_bar_frame, text="")
+        self.status_bar_label.grid(row=0, column=1, padx=10, sticky="e")  # Align to the right
+
+
+        # Call the method to update the time in the status bar
+        self.update_time()
+        
+        
+        
 
         self.sidebar_frame = customtkinter.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
@@ -143,6 +161,12 @@ class App(customtkinter.CTk):
         self.seg_button_1.configure(values=["CTkSegmentedButton", "Value 2", "Value 3"])
         self.seg_button_1.set("Value 2")
         customtkinter.set_widget_scaling(120/100)
+        
+    def update_time(self):
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.status_bar_label.configure(text=f"Time: {current_time}")
+        # Schedule this method to be called again after 1000 milliseconds (1 second)
+        self.after(1000, self.update_time)
 
     def open_input_dialog_event(self):
         dialog = customtkinter.CTkInputDialog(text="Type in a number:", title="Input")
