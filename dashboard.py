@@ -89,7 +89,17 @@ class App(customtkinter.CTk):
 
     def show_panel_1(self):
         self.clear_panels()
-        # Setup widgets for panel 1
+        # Now create the Panel 1 specific widgets
+        label = customtkinter.CTkLabel(self.panel1, text="This is Panel 1", anchor="w", padx=20)
+        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+
+        entry = customtkinter.CTkEntry(self.panel1, placeholder_text="Enter something...")
+        entry.grid(row=1, column=0, padx=20, sticky="ew")
+
+        button = customtkinter.CTkButton(self.panel1, text="Click me", command=self.some_function)
+        button.grid(row=2, column=0, padx=20, pady=(10, 20))
+
+        # Finally, grid the panel itself
         self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     def show_panel_2(self):
@@ -103,6 +113,14 @@ class App(customtkinter.CTk):
         self.panel3.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     def clear_panels(self):
+        # This method clears all widgets from the main content area
+        for widget in self.panel1.winfo_children():
+            widget.destroy()
+        for widget in self.panel2.winfo_children():
+            widget.destroy()
+        for widget in self.panel3.winfo_children():
+            widget.destroy()
+
         self.panel1.grid_remove()
         self.panel2.grid_remove()
         self.panel3.grid_remove()
@@ -114,7 +132,8 @@ class App(customtkinter.CTk):
         new_scaling_float = int(new_scaling.replace("%", "")) / 100
         customtkinter.set_widget_scaling(new_scaling_float)
 
-    # Add other methods or event handlers as needed
+    def some_function(self):
+        print("Button clicked!")
 
 if __name__ == "__main__":
     app = App()
