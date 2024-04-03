@@ -5,3 +5,4 @@ PyQt5
 PyQtWebEngine
 pygame
 customtkinter
+pillow
