@@ -1,11 +1,13 @@
 import tkinter
 import tkinter.messagebox
 import customtkinter
+from customtkinter import CTkImage 
 import platform
 import datetime
 from PIL import Image, ImageTk
 
-customtkinter.set_appearance_mode("System")  # System appearance mode
+
+customtkinter.set_appearance_mode("Dark")  # System appearance mode
 customtkinter.set_default_color_theme("blue")  # Default color theme
 
 class App(customtkinter.CTk):
@@ -13,11 +15,10 @@ class App(customtkinter.CTk):
         super().__init__()
         self.title("Control Panel")
         self.geometry(f"{1100}x{580}")  # Window size
+        icon_size = (50, 50)  
         
-        
-        image = Image.open("icons/power.png")
-        image = image.resize((50, 50))  # Resize the image to the desired size
-        photo = ImageTk.PhotoImage(image)
+        self.power_image = CTkImage(Image.open("icons/power.png").resize(icon_size))
+        self.settings_image = CTkImage(Image.open("icons/settings.png").resize(icon_size))
 
         print(platform.system())
 
@@ -32,7 +33,7 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure(4, weight=0)
 
         # Status Bar
-        self.status_bar_frame = customtkinter.CTkFrame(self, height=60, fg_color="gray", corner_radius=0)
+        self.status_bar_frame = customtkinter.CTkFrame(self, height=icon_size[0], fg_color="gray", corner_radius=0)
         self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
         self.status_bar_frame.grid_columnconfigure(1, weight=1)
         self.status_bar_frame.grid_propagate(False)
@@ -48,7 +49,7 @@ class App(customtkinter.CTk):
         self.update_time()
 
         # Sidebar Buttons
-        self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="Marcetux", font=customtkinter.CTkFont(size=40, weight="bold"))
+        self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="Marcetux", font=customtkinter.CTkFont(size=26, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
         self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Dashboard")
         self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
@@ -64,12 +65,12 @@ class App(customtkinter.CTk):
         self.panel3 = customtkinter.CTkFrame(self, width=250, corner_radius=0)
 
         # Status Bar Buttons for Panel Switching
-        power_button = customtkinter.CTkButton(self.status_bar_frame, image=photo, command=self.quit_app, width=55, height=55,fg_color="orange", text="", hover_color="orange", corner_radius=0)
+        self.power_button = customtkinter.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
 
-        power_button.grid(row=0, column=0, padx=1, pady=1)
-        self.status_button_2 = customtkinter.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation)
+        self.power_button.grid(row=0, column=0, padx=1, pady=1)
+        self.status_button_2 = customtkinter.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
         self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
-        self.settings_button = customtkinter.CTkButton(self.status_bar_frame, text="Settings", command=self.show_settings, fg_color="gray", hover_color="gray", corner_radius=0)
+        self.settings_button = customtkinter.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
         self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
         # Show the first panel by default
@@ -114,7 +115,7 @@ class App(customtkinter.CTk):
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M:%S")
         current_date = now.strftime("%Y-%m-%d")
-        self.status_bar_label.configure(text=f"{current_date} {current_time}")
+        self.status_bar_label.configure(text=f"{current_time} \n {current_date} ", padx=10, pady=10, font=customtkinter.CTkFont(size=12), text_color="white")
         self.after(1000, self.update_time)
 
     def show_conversation(self):
@@ -174,5 +175,8 @@ class App(customtkinter.CTk):
         print("Button clicked!")
 
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    try:
+        app = App()
+        app.mainloop()
+    except Exception as e:
+        print(f"An exception occurred: {e}")
