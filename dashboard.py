@@ -22,10 +22,16 @@ class App(customtkinter.CTk):
 
         print(platform.system())
 
+        # Check for platform and maximize accordingly
         if platform.system() == "Windows":
             self.state("zoomed")
+        elif platform.system() == "Darwin":  # Darwin is the system name for macOS
+            # Get screen width and height
+            ws = self.winfo_screenwidth()  
+            hs = self.winfo_screenheight()
+            self.geometry(f"{ws}x{hs}+0+0")
         else:
-            self.attributes("-zoomed", True)
+            self.attributes('-zoomed', True)
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure((2, 3), weight=0)
