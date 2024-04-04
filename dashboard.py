@@ -17,9 +17,6 @@ logging.basicConfig(level=logging.DEBUG,
                     filemode='a')
 
 
-
-
-
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -137,18 +134,54 @@ class App(customtkinter.CTk):
 
     def show_conversation(self):
         self.clear_panels()
-        # Now create the Panel 1 specific widgets
-        label = customtkinter.CTkLabel(self.panel1, text="Welcome", anchor="w", padx=20, font=customtkinter.CTkFont(size=20, weight="bold"))
-        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+        # Set the panel layout to fill the available space
+        self.panel1.grid_rowconfigure(1, weight=1)
+        self.panel1.grid_columnconfigure(0, weight=1)
 
-        entry = customtkinter.CTkEntry(self.panel1, placeholder_text="Ask me anything...")
-        entry.grid(row=1, column=0, padx=20, sticky="ew")
+        # Create the Panel 1 specific widgets
+        label = customtkinter.CTkLabel(self.panel1, text="Welcome to the conversation", anchor="w", padx=20, font=customtkinter.CTkFont(size=20, weight="bold"))
+        label.grid(row=0, column=0, pady=(10, 10), sticky="nsew")
 
-        button = customtkinter.CTkButton(self.panel1, text="Ask", command=self.some_function)
-        button.grid(row=2, column=0, padx=20, pady=(10, 20))
+        # Chat history area with a modern look
+        self.chat_history = customtkinter.CTkTextbox(self.panel1, height=15, corner_radius=10, fg_color="#2e2e2e", text_color="white")
+        self.chat_history.grid(row=1, column=0, padx=20, pady=(10, 10), sticky="nsew")
+
+        # Frame for the user input and send button
+        input_frame = customtkinter.CTkFrame(self.panel1, corner_radius=0)
+        input_frame.grid(row=2, column=0, padx=20, pady=(10, 10), sticky="nsew")
+        input_frame.grid_columnconfigure(0, weight=1)
+
+        # User input entry
+        self.user_input = customtkinter.CTkEntry(input_frame, placeholder_text="Ask me anything...", corner_radius=10)
+        self.user_input.grid(row=0, column=0, padx=(0, 10), pady=(0, 10), sticky="nsew")
+
+        # Send button with a modern look
+        send_button = customtkinter.CTkButton(input_frame, text="Send", command=self.send_message, corner_radius=10, fg_color="#4a7dfc", hover_color="#5a8ffc")
+        send_button.grid(row=0, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
 
         # Finally, grid the panel itself
         self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
+
+        
+    def send_message(self):
+        user_message = self.user_input.get()
+        if user_message.strip() != "":
+            # Display the user's message in the chat history
+            self.chat_history.insert("end", f"You: {user_message}\n")
+            self.chat_history.see("end")
+
+            # Clear the user input entry
+            self.user_input.delete(0, "end")
+
+            # Here, you can add the code to call the OpenAI API and get a response
+            # For demonstration purposes, we'll just echo the user's message
+            bot_response = f"Bot: {user_message}\n"
+
+            # Display the bot's response in the chat history
+            self.chat_history.insert("end", bot_response)
+            self.chat_history.see("end")
+
+
 
     def show_panel_2(self):
         self.clear_panels()
