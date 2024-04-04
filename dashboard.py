@@ -5,22 +5,33 @@ from customtkinter import CTkImage
 import platform
 import datetime
 from PIL import Image, ImageTk
+import logging
+
+customtkinter.set_appearance_mode("Dark")  
+customtkinter.set_default_color_theme("blue")  
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    filename='navigator.log',
+                    filemode='a')
 
 
-customtkinter.set_appearance_mode("Dark")  # System appearance mode
-customtkinter.set_default_color_theme("blue")  # Default color theme
+
+
 
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
         self.title("Control Panel")
-        self.geometry(f"{1100}x{580}")  # Window size
+        self.geometry(f"{1100}x{580}")  
         icon_size = (50, 50)  
+        
+        logging.info(platform.system())
+
         
         self.power_image = CTkImage(Image.open("icons/power.png").resize(icon_size))
         self.settings_image = CTkImage(Image.open("icons/settings.png").resize(icon_size))
-
-        print(platform.system())
 
         # Check for platform and maximize accordingly
         if platform.system() == "Windows":
