@@ -34,10 +34,14 @@ class App(customtkinter.CTk):
         if platform.system() == "Windows":
             self.state("zoomed")
         elif platform.system() == "Darwin":  # Darwin is the system name for macOS
-            # Get screen width and height
-            ws = self.winfo_screenwidth()  
-            hs = self.winfo_screenheight()
-            self.geometry(f"{ws}x{hs}+0+0")
+            
+            self.attributes("-fullscreen", True)
+
+            
+            # # Get screen width and height
+            # ws = self.winfo_screenwidth()  
+            # hs = self.winfo_screenheight()
+            # self.geometry(f"{ws}x{hs}+0+0")
         else:
             self.attributes('-zoomed', True)
 
@@ -67,9 +71,9 @@ class App(customtkinter.CTk):
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
         self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Dashboard")
         self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
-        self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_panel_2, text="Preferences")
+        self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
         self.sidebar_button_2.grid(row=2, column=0, padx=20, pady=10)
-        self.sidebar_button_3 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_panel_3, text="Vault")
+        self.sidebar_button_3 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
         self.sidebar_button_3.grid(row=3, column=0, padx=20, pady=10)
 
 
@@ -183,23 +187,24 @@ class App(customtkinter.CTk):
 
 
 
-    def show_panel_2(self):
+    def show_music_companion(self):
         self.clear_panels()
-        label = customtkinter.CTkLabel(self.panel1, text="This is Panel 2", anchor="w", padx=20)
+        label = customtkinter.CTkLabel(self.panel2, text="Music companion", anchor="w", padx=20, font=customtkinter.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="w")
         
-        
-        # Setup widgets for panel 2
+        # Display the panel after setting it up
         self.panel2.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
-    def show_panel_3(self):
-        label = customtkinter.CTkLabel(self.panel1, text="This is Panel 3", anchor="w", padx=20)
+        
+
+    def show_vault_panel(self):
+        self.clear_panels()
+        label = customtkinter.CTkLabel(self.panel3, text="Vault", anchor="w", padx=20, font=customtkinter.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="w")
         
-        
-        self.clear_panels()
-        # Setup widgets for panel 3
+        # Display the panel after setting it up
         self.panel3.grid(row=0, column=1, rowspan=3, sticky="nsew")
+
 
     def clear_panels(self):
         # This method clears all widgets from the main content area
