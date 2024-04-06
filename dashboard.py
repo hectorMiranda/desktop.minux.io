@@ -6,6 +6,8 @@ import platform
 import datetime
 from PIL import Image, ImageTk
 import logging
+import configparser
+
 
 customtkinter.set_appearance_mode("Dark")  
 customtkinter.set_default_color_theme("blue")  
@@ -15,8 +17,6 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
                     filename='navigator.log',
                     filemode='a')
-
-
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -26,22 +26,25 @@ class App(customtkinter.CTk):
         
         logging.info(platform.system())
 
-        
         self.power_image = CTkImage(Image.open("icons/power.png").resize(icon_size))
         self.settings_image = CTkImage(Image.open("icons/settings.png").resize(icon_size))
+        
+        # Load the configuration for the image path once here
+        self.config = configparser.ConfigParser()
+        self.config.read('dashboard.ini')  # Make sure this points to the correct config file
+        self.logo_path = self.config.get('Images', 'logo')  # Store the logo path
+
+        # Load and resize the logo image using CTkImage
+        self.logo_image = CTkImage(Image.open(self.logo_path).resize((250, 250)))
+        
+        
+        
 
         # Check for platform and maximize accordingly
         if platform.system() == "Windows":
             self.state("zoomed")
         elif platform.system() == "Darwin":  # Darwin is the system name for macOS
-            
             self.attributes("-fullscreen", True)
-
-            
-            # # Get screen width and height
-            # ws = self.winfo_screenwidth()  
-            # hs = self.winfo_screenheight()
-            # self.geometry(f"{ws}x{hs}+0+0")
         else:
             self.attributes('-zoomed', True)
 
@@ -69,12 +72,16 @@ class App(customtkinter.CTk):
         # Sidebar Buttons
         self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="Marcetux", font=customtkinter.CTkFont(size=26, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-        self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Dashboard")
-        self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
-        self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
-        self.sidebar_button_2.grid(row=2, column=0, padx=20, pady=10)
-        self.sidebar_button_3 = customtkinter.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
-        self.sidebar_button_3.grid(row=3, column=0, padx=20, pady=10)
+        self.sidebar_dashboard_button = customtkinter.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
+        self.sidebar_dashboard_button.grid(row=1, column=0, padx=20, pady=10)
+        self.sidebar_music_companion_button = customtkinter.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
+        self.sidebar_music_companion_button.grid(row=2, column=0, padx=20, pady=10)
+        self.sidebar_vault_button = customtkinter.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
+        self.sidebar_vault_button.grid(row=3, column=0, padx=20, pady=10)
+        self.sidebar_conversation_button = customtkinter.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
+        self.sidebar_conversation_button.grid(row=4, column=0, padx=20, pady=10)
+        self.sidebar_data_science_button = customtkinter.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
+        self.sidebar_data_science_button.grid(row=5, column=0, padx=20, pady=10)
 
 
         # Main Content Panels
@@ -95,8 +102,70 @@ class App(customtkinter.CTk):
         self.show_conversation()
         
     def quit_app(self):
-        #save whatever is pending
-        self.quit()
+        confirmation_dialog = customtkinter.CTkToplevel(self)
+        confirmation_dialog.title("Exit Confirmation")
+
+        # Make the window modal
+        confirmation_dialog.transient(self)
+        confirmation_dialog.grab_set()
+
+        # Set window size and disable resizing
+        confirmation_dialog.geometry("300x200")
+        confirmation_dialog.resizable(False, False)
+
+        # Center the dialog on the screen
+        # Calculate position x, y
+        x = self.winfo_x() + self.winfo_width() // 2 - 150
+        y = self.winfo_y() + self.winfo_height() // 2 - 100
+        confirmation_dialog.geometry("+%d+%d" % (x, y))
+
+
+
+        logo_label = customtkinter.CTkLabel(confirmation_dialog, image=self.logo_image, text="", width=50, height=50)
+        logo_label.pack(pady=10)  
+        confirmation_label = customtkinter.CTkLabel(confirmation_dialog, text="Are you sure you want to exit?")
+        confirmation_label.pack(pady=20)
+
+    
+
+        yes_button = customtkinter.CTkButton(confirmation_dialog, text="Yes", command=lambda: [confirmation_dialog.destroy(), self.quit()])
+        no_button = customtkinter.CTkButton(confirmation_dialog, text="No", command=confirmation_dialog.destroy)
+        
+        yes_button.pack(side='left', fill='x', expand=True, padx=20, pady=10)
+        no_button.pack(side='right', fill='x', expand=True, padx=20, pady=10)
+
+        # Wait for the window to close before returning to the main loop
+        self.wait_window(confirmation_dialog)
+
+
+
+    def new_tab(self):
+        confirmation_dialog = customtkinter.CTkToplevel(self)
+        confirmation_dialog.title("Exit Confirmation")
+        confirmation_dialog.geometry("300x200")  # Set the size of the dialog
+
+        # Center the dialog on the screen
+        window_width = 300
+        window_height = 200
+        screen_width = confirmation_dialog.winfo_screenwidth()
+        screen_height = confirmation_dialog.winfo_screenheight()
+        center_x = int(screen_width / 2 - window_width / 2)
+        center_y = int(screen_height / 2 - window_height / 2)
+        confirmation_dialog.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+
+        # Set the custom dialog layout
+        confirmation_label = customtkinter.CTkLabel(confirmation_dialog, text="Are you sure you want to exit?", image=self.logo_image, compound='top', width=250, height=250, padx=10, pady=10, font=customtkinter.CTkFont(size=16))
+        confirmation_label.pack(pady=10, padx=10)
+        
+        button_frame = customtkinter.CTkFrame(confirmation_dialog)
+        button_frame.pack(fill='x', expand=True)
+
+        yes_button = customtkinter.CTkButton(button_frame, text="Yes", command=self.quit)
+        no_button = customtkinter.CTkButton(button_frame, text="No", command=confirmation_dialog.destroy)
+        
+        yes_button.pack(side='left', fill='x', expand=True, padx=20)
+        no_button.pack(side='right', fill='x', expand=True, padx=20)
+
         
     def show_settings(self):
         # Create the settings frame only if it does not exist
@@ -135,6 +204,14 @@ class App(customtkinter.CTk):
         current_date = now.strftime("%Y-%m-%d")
         self.status_bar_label.configure(text=f"{current_time} \n {current_date} ", padx=10, pady=10, font=customtkinter.CTkFont(size=12), text_color="white")
         self.after(1000, self.update_time)
+        
+    def show_dashboard(self):
+        self.clear_panels()
+        label = customtkinter.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=customtkinter.CTkFont(size=20, weight="bold"))
+        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+        
+        # Display the panel after setting it up
+        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     def show_conversation(self):
         self.clear_panels()
