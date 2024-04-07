@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 import logging
 import configparser
 
-ctk.set_appearance_mode("Dark")  
+ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
 
 logging.basicConfig(level=logging.DEBUG,
