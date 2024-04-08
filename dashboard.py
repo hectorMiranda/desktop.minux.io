@@ -67,11 +67,6 @@ class App(ctk.CTk):
         logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
         logo_label.pack(pady=10)  
         
-        
-        # canvas = ctk.CTkCanvas(self.logo_label = ctk.CTkLabel(confirmation_dialog, image=self.logo_image, text="")
-        # logo_label.pack(pady=10)  , width=100, height=100)  # Adjust the size as needed
-        # canvas.create_image(50, 50, anchor="center", image=self.logo_image)  # Adjust the position as needed
-        # canvas.pack(pady=(20, 10))
 
         # Sidebar Buttons
         self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
@@ -100,8 +95,7 @@ class App(ctk.CTk):
         self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
         self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
-        # Show the first panel by default
-        self.show_conversation()
+        self.show_dashboard()
         
     def quit_app(self):
         confirmation_dialog = ctk.CTkToplevel(self)
@@ -211,9 +205,34 @@ class App(ctk.CTk):
         self.clear_panels()
         label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="w")
-        
+
+        # Example widgets for the dashboard
+        # Widget 1: System Status
+        status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
+        status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
+
+        # Widget 2: CPU Usage
+        cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
+        cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
+
+        # Widget 3: Memory Usage
+        memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
+
+        # Ensure all labels are in the first column, values in the second
+        self.panel1.grid_columnconfigure(0, weight=1)
+        self.panel1.grid_columnconfigure(1, weight=1)
+
         # Display the panel after setting it up
         self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
+
+
 
     def show_conversation(self):
         self.clear_panels()
