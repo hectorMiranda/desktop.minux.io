@@ -202,44 +202,46 @@ class App(ctk.CTk):
         self.after(1000, self.update_time)
         
     def show_dashboard(self):
-        self.clear_panels()
-        label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+        print("Dashboard")
+        # self.clear_panels()
+        # label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
+        # label.grid(row=0, column=0, pady=(10, 10), sticky="w")
 
-        # Example widgets for the dashboard
-        # Widget 1: System Status
-        status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
-        status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
+        # # Example widgets for the dashboard
+        # # Widget 1: System Status
+        # status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
+        # status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
 
-        # Widget 2: CPU Usage
-        cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
-        cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
+        # # Widget 2: CPU Usage
+        # cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
+        # cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
 
-        # Widget 3: Memory Usage
-        memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
-        memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
+        # # Widget 3: Memory Usage
+        # memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        # memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
 
-        # Ensure all labels are in the first column, values in the second
-        self.panel1.grid_columnconfigure(0, weight=1)
-        self.panel1.grid_columnconfigure(1, weight=1)
+        # # Ensure all labels are in the first column, values in the second
+        # self.panel1.grid_columnconfigure(0, weight=1)
+        # self.panel1.grid_columnconfigure(1, weight=1)
 
-        # Display the panel after setting it up
-        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
-
+        # # Display the panel after setting it up
+        # self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
 
     def show_conversation(self):
         self.clear_panels()
+
         # Set the panel layout to fill the available space
+        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
         self.panel1.grid_rowconfigure(1, weight=1)
         self.panel1.grid_columnconfigure(0, weight=1)
-
+        
         # Create the Panel 1 specific widgets
         label = ctk.CTkLabel(self.panel1, text="Welcome to the conversation", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="nsew")
@@ -261,8 +263,6 @@ class App(ctk.CTk):
         send_button = ctk.CTkButton(input_frame, text="Send", command=self.send_message, corner_radius=10, fg_color="#4a7dfc", hover_color="#5a8ffc")
         send_button.grid(row=0, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
 
-        # Finally, grid the panel itself
-        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
         
     def send_message(self):
