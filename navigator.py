@@ -13,7 +13,8 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 import pygame
 import tkinter as tk
 from tkinter import Button, Entry, Label, Menu, Scale, Toplevel, ttk, messagebox
-
+from firebase_admin import credentials, firestore
+import firebase_admin
 
 
 qt_app = None
@@ -28,6 +29,8 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 
 firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH))
 db = firestore.client()
+
+
 
 def save_transparency(transparency):
     with open('settings.txt', 'w') as file:
