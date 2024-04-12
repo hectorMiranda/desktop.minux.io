@@ -1,5 +1,4 @@
-import tkinter
-import tkinter.messagebox
+import os
 import customtkinter as ctk
 import platform
 import datetime
@@ -7,7 +6,7 @@ from PIL import Image, ImageTk
 import logging
 import configparser
 
-ctk.set_appearance_mode("Dark")  
+ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
 
 logging.basicConfig(level=logging.DEBUG,
@@ -15,6 +14,9 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
                     filename='navigator.log',
                     filemode='a')
+
+SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -67,11 +69,6 @@ class App(ctk.CTk):
         logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
         logo_label.pack(pady=10)  
         
-        
-        # canvas = ctk.CTkCanvas(self.logo_label = ctk.CTkLabel(confirmation_dialog, image=self.logo_image, text="")
-        # logo_label.pack(pady=10)  , width=100, height=100)  # Adjust the size as needed
-        # canvas.create_image(50, 50, anchor="center", image=self.logo_image)  # Adjust the position as needed
-        # canvas.pack(pady=(20, 10))
 
         # Sidebar Buttons
         self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
@@ -100,8 +97,7 @@ class App(ctk.CTk):
         self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
         self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
-        # Show the first panel by default
-        self.show_conversation()
+        self.show_dashboard()
         
     def quit_app(self):
         confirmation_dialog = ctk.CTkToplevel(self)
@@ -136,7 +132,6 @@ class App(ctk.CTk):
         yes_button.pack(side='left', fill='x', expand=True, padx=20, pady=0)
         no_button.pack(side='right', fill='x', expand=True, padx=20, pady=0)
 
-        # Wait for the window to close before returning to the main loop
         self.wait_window(confirmation_dialog)
 
 
@@ -144,54 +139,54 @@ class App(ctk.CTk):
     def new_tab(self):
         confirmation_dialog = ctk.CTkToplevel(self)
         confirmation_dialog.title("Exit Confirmation")
-        confirmation_dialog.geometry("300x200")  # Set the size of the dialog
+        dialog_width = 400
+        dialog_height = 150
+        confirmation_dialog.geometry(f"{dialog_width}x{dialog_height}")
 
-        # Center the dialog on the screen
-        window_width = 300
-        window_height = 200
+
         screen_width = confirmation_dialog.winfo_screenwidth()
         screen_height = confirmation_dialog.winfo_screenheight()
-        center_x = int(screen_width / 2 - window_width / 2)
-        center_y = int(screen_height / 2 - window_height / 2)
-        confirmation_dialog.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        center_x = int(screen_width / 2 - dialog_width / 2)
+        center_y = int(screen_height / 2 - dialog_height / 2)
+        confirmation_dialog.geometry(f"+{center_x}+{center_y}")
 
-        # Set the custom dialog layout
-        confirmation_label = ctk.CTkLabel(confirmation_dialog, text="Are you sure you want to exit?", image=self.logo_image, compound='top', width=250, height=250, padx=10, pady=10, font=ctk.CTkFont(size=16))
-        confirmation_label.pack(pady=10, padx=10)
-        
+        # Customized label layout without the image, with better font and padding
+        confirmation_label = ctk.CTkLabel(confirmation_dialog, text="Are you sure you want to exit?",
+                                        font=ctk.CTkFont(size=12), fg_color=None, text_color="black")
+        confirmation_label.pack(pady=20, padx=20)
+
+        # Frame for buttons with padding
         button_frame = ctk.CTkFrame(confirmation_dialog)
-        button_frame.pack(fill='x', expand=True)
+        button_frame.pack(fill='x', expand=True, pady=10)
 
-        yes_button = ctk.CTkButton(button_frame, text="Yes", command=self.quit)
-        no_button = ctk.CTkButton(button_frame, text="No", command=confirmation_dialog.destroy)
+        # Stylish buttons with custom colors and padding
+        yes_button = ctk.CTkButton(button_frame, text="Yes", command=self.quit,
+                                    fg_color="green", hover_color="light green")
+        no_button = ctk.CTkButton(button_frame, text="No", command=confirmation_dialog.destroy,
+                                fg_color="red", hover_color="light coral")
         
-        yes_button.pack(side='left', fill='x', expand=True, padx=20)
-        no_button.pack(side='right', fill='x', expand=True, padx=20)
+        yes_button.pack(side='left', fill='x', expand=True, padx=10)
+        no_button.pack(side='right', fill='x', expand=True, padx=10)
 
         
     def show_settings(self):
-        # Create the settings frame only if it does not exist
         if not hasattr(self, 'settings_frame'):
             self.settings_frame = ctk.CTkFrame(self, width=400, height=300, corner_radius=10)
             self.settings_frame.grid(row=0, column=1, rowspan=3, sticky="nsew")
             
-            # Appearance Mode Option
             appearance_mode_label = ctk.CTkLabel(self.settings_frame, text="Appearance Mode:", anchor="w")
             appearance_mode_label.pack(padx=20, pady=(10, 0))
             appearance_mode_optionmenu = ctk.CTkOptionMenu(self.settings_frame, values=["Light", "Dark", "System"], command=self.change_appearance_mode_event)
             appearance_mode_optionmenu.pack(padx=20, pady=(0, 10))
 
-            # UI Scaling Option
             scaling_label = ctk.CTkLabel(self.settings_frame, text="UI Scaling:", anchor="w")
             scaling_label.pack(padx=20, pady=(10, 0))
             scaling_optionmenu = ctk.CTkOptionMenu(self.settings_frame, values=["80%", "90%", "100%", "110%", "120%"], command=self.change_scaling_event)
             scaling_optionmenu.pack(padx=20, pady=(0, 10))
 
-            # Close Button for the settings frame
             close_button = ctk.CTkButton(self.settings_frame, text="Close", command=self.close_settings)
             close_button.pack(pady=20)
 
-        # Bring the settings frame to the top
         self.settings_frame.lift()
 
     def close_settings(self):
@@ -208,19 +203,46 @@ class App(ctk.CTk):
         self.after(1000, self.update_time)
         
     def show_dashboard(self):
-        self.clear_panels()
-        label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
-        
-        # Display the panel after setting it up
-        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
+        print("Dashboard")
+        # self.clear_panels()
+        # label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
+        # label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+
+        # # Example widgets for the dashboard
+        # # Widget 1: System Status
+        # status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
+        # status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
+
+        # # Widget 2: CPU Usage
+        # cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
+        # cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
+
+        # # Widget 3: Memory Usage
+        # memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        # memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        # memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
+
+        # # Ensure all labels are in the first column, values in the second
+        # self.panel1.grid_columnconfigure(0, weight=1)
+        # self.panel1.grid_columnconfigure(1, weight=1)
+
+        # # Display the panel after setting it up
+        # self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
+
 
     def show_conversation(self):
         self.clear_panels()
+
         # Set the panel layout to fill the available space
+        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
         self.panel1.grid_rowconfigure(1, weight=1)
         self.panel1.grid_columnconfigure(0, weight=1)
-
+        
         # Create the Panel 1 specific widgets
         label = ctk.CTkLabel(self.panel1, text="Welcome to the conversation", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="nsew")
@@ -242,8 +264,6 @@ class App(ctk.CTk):
         send_button = ctk.CTkButton(input_frame, text="Send", command=self.send_message, corner_radius=10, fg_color="#4a7dfc", hover_color="#5a8ffc")
         send_button.grid(row=0, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
 
-        # Finally, grid the panel itself
-        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
         
     def send_message(self):
