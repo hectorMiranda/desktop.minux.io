@@ -193,7 +193,7 @@ def show_map():
         ).add_to(m)
 
     # Save the map as an HTML file
-    map_file = 'map.html'
+    map_file = './outputs/map.html'
     m.save(map_file)
 
     # Use PyQt5 to display the map
