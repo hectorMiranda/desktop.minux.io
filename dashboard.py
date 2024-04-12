@@ -26,12 +26,12 @@ class App(ctk.CTk):
         
         logging.info(platform.system())
 
-        self.power_image = ctk.CTkImage(Image.open("icons/power.png").resize(icon_size))
-        self.settings_image = ctk.CTkImage(Image.open("icons/settings.png").resize(icon_size))
+        self.power_image = ctk.CTkImage(Image.open("./media/icons/power.png").resize(icon_size))
+        self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
         
         self.config = configparser.ConfigParser()
         self.config.read('dashboard.ini') 
-        self.logo_path = self.config.get('Images', 'logo')  
+        self.logo_path = self.config.get('images', 'logo')  
         self.logo_image = Image.open(self.logo_path).resize((106, 95)) 
 
 
