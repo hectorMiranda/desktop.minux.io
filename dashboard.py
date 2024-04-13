@@ -5,6 +5,7 @@ import datetime
 from PIL import Image, ImageTk
 import logging
 import configparser
+import json
 
 ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
@@ -73,6 +74,12 @@ class App(ctk.CTk):
         # Sidebar Buttons
         self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
         self.sidebar_dashboard_button.pack(padx=20, pady=10)
+        self.add_tab_button = ctk.CTkButton(self.sidebar_frame, text="Media", command=self.show_add_widget_dialog)
+        self.add_tab_button.pack(padx=20, pady=10)
+        
+        
+        
+        
         self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
         self.sidebar_music_companion_button.pack(padx=20, pady=10)
         self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
@@ -97,7 +104,42 @@ class App(ctk.CTk):
         self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
         self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
+        self.widgets = []
+
         self.show_dashboard()
+        
+    def show_add_widget_dialog(self):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Media")
+        dialog.geometry("300x200")
+
+        todo_button = ctk.CTkButton(dialog, text="TODO Widget", command=lambda: self.add_widget("TODO"))
+        todo_button.pack(pady=10)
+
+        voice_button = ctk.CTkButton(dialog, text="Voice Recorder Widget", command=lambda: self.add_widget("Voice"))
+        voice_button.pack(pady=10)
+
+    def add_widget(self, widget_type):
+        widget = None
+        if widget_type == "TODO":
+            widget = ctk.CTkLabel(self.panel1, text="TODO Widget")
+        elif widget_type == "Voice":
+            widget = ctk.CTkLabel(self.panel1, text="Voice Recorder Widget")
+        widget.pack()
+        self.widgets.append({"type": widget_type, "widget": widget})
+        self.save_widgets()
+
+    def save_widgets(self):
+        with open('widgets.json', 'w') as f:
+            json.dump([w['type'] for w in self.widgets], f)
+
+    def load_widgets(self):
+        self.widgets = []
+        if os.path.exists('widgets.json'):
+            with open('widgets.json', 'r') as f:
+                widget_types = json.load(f)
+                for widget_type in widget_types:
+                    self.add_widget(widget_type)
         
     def quit_app(self):
         confirmation_dialog = ctk.CTkToplevel(self)
