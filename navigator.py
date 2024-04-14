@@ -66,7 +66,7 @@ def open_preferences():
 def open_timer():
     pygame.mixer.init()
 
-    alarm_sound = pygame.mixer.Sound("alarm.mp3")  # Ensure you have an 'alarm.wav' file in your project directory
+    alarm_sound = pygame.mixer.Sound("./media/sounds/alarm.mp3")  # Ensure you have an 'alarm.wav' file in your project directory
 
     clear_frame()
 
