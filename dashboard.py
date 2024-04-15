@@ -140,6 +140,23 @@ class App(ctk.CTk):
                 widget_types = json.load(f)
                 for widget_type in widget_types:
                     self.add_widget(widget_type)
+                    
+                    
+    def save_transparency(transparency):
+        with open('settings.txt', 'w') as file:
+        file.write(str(transparency))
+        
+    def load_transparency():
+        try:
+            with open('settings.txt', 'r') as file:
+                return float(file.read())
+        except (FileNotFoundError, ValueError):
+            return 1.0  # Default transparency
+
+    def update_transparency(value):
+        transparency = float(value)
+        root.attributes('-alpha', transparency)
+        save_transparency(transparency)
         
     def quit_app(self):
         confirmation_dialog = ctk.CTkToplevel(self)
