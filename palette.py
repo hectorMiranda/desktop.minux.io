@@ -340,13 +340,13 @@ def create_toolbar(toolbar_frame):
         btn.grid(row=0, column=index, padx=10, pady=5)
         
 dashboard_items = [
-    {"name": "Home", "icon": "icons/home.png", "action": show_welcome},
-    {"name": "Tasks", "icon": "icons/tasks.png", "action": open_tasks},
-    {"name": "Maps", "icon": "icons/reports.png", "action": show_map},
-    {"name": "AI", "icon": "icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
-    {"name": "Help", "icon": "icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
-    {"name": "Clock", "icon": "icons/ai.png", "action": open_clock},
-    {"name": "Timer", "icon": "icons/ai.png", "action": open_timer}
+    {"name": "Home", "icon": "./media/icons/home.png", "action": show_welcome},
+    {"name": "Tasks", "icon": "./media/icons/tasks.png", "action": open_tasks},
+    {"name": "Maps", "icon": "./media/icons/reports.png", "action": show_map},
+    {"name": "AI", "icon": "./media/icons/ai.png", "action": lambda: messagebox.showinfo("AI", "Coming Soon")},
+    {"name": "Help", "icon": "./media/icons/help.png", "action": lambda: messagebox.showinfo("Help", "Coming Soon")},
+    {"name": "Clock", "icon": "./media/icons/ai.png", "action": open_clock},
+    {"name": "Timer", "icon": "./media/icons/ai.png", "action": open_timer}
 
 ]
 
