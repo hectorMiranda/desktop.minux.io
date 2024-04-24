@@ -144,7 +144,7 @@ class App(ctk.CTk):
                     
     def save_transparency(transparency):
         with open('settings.txt', 'w') as file:
-        file.write(str(transparency))
+            file.write(str(transparency))
         
     def load_transparency():
         try:
