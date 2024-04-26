@@ -31,7 +31,7 @@ class App(ctk.CTk):
         self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
         
         self.config = configparser.ConfigParser()
-        self.config.read('dashboard.ini') 
+        self.config.read('configs/minux.ini') 
         self.logo_path = self.config.get('images', 'logo')  
         self.logo_image = Image.open(self.logo_path).resize((106, 95)) 
 
