@@ -6,6 +6,8 @@ from PIL import Image, ImageTk
 import logging
 import configparser
 import json
+from ui.widgets.widgets import StatusBar, SideBar
+
 
 ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
@@ -18,95 +20,117 @@ logging.basicConfig(level=logging.DEBUG,
 
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
-class App(ctk.CTk):
+class App(ctk.CTk):  
     def __init__(self):
         super().__init__()
-        self.title("Control Panel")
-        self.geometry(f"{1100}x{580}")  
-        icon_size = (50, 50)  
-        
+        self.title("Minux is more!")
+        self.geometry("1100x580")
+
+        icon_size = (50, 50)
         logging.info(platform.system())
 
-        self.power_image = ctk.CTkImage(Image.open("./media/icons/power.png").resize(icon_size))
-        self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
-        
-        self.config = configparser.ConfigParser()
-        self.config.read('configs/minux.ini') 
-        self.logo_path = self.config.get('images', 'logo')  
-        self.logo_image = Image.open(self.logo_path).resize((106, 95)) 
 
 
-        # Check for platform and maximize accordingly
-        if platform.system() == "Windows":
-            self.state("zoomed")
-        elif platform.system() == "Darwin": 
-            self.attributes("-fullscreen", True)
-        else:
-            self.attributes('-zoomed', True)
+        self.status_bar = StatusBar(self, icon_size)
+        self.sidebar = SideBar(self)
 
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure((2, 3), weight=0)
-        self.grid_rowconfigure((0, 1, 2), weight=1)
-        self.grid_rowconfigure(4, weight=0)
+        self.sidebar.add_button("Dashboard", self.show_dashboard)
+        self.sidebar.add_button("Media", self.show_add_widget_dialog)
+        self.sidebar.add_button("Music Companion", self.show_music_companion)
+        self.sidebar.add_button("Vault", self.show_vault_panel)
+        self.sidebar.add_button("Conversation", self.show_conversation)
+        self.sidebar.add_button("Data Science", self.show_data_science_panel)
 
-        # Status Bar
-        self.status_bar_frame = ctk.CTkFrame(self, height=icon_size[0], fg_color="gray", corner_radius=0)
-        self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
-        self.status_bar_frame.grid_columnconfigure(1, weight=1)
-        self.status_bar_frame.grid_propagate(False)
-        
-       # Sidebar
-        self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-
-        # Status bar time label
-        self.status_bar_label = ctk.CTkLabel(self.status_bar_frame, text="")
-        self.status_bar_label.grid(row=0, column=3, padx=1, sticky="e")
         self.update_time()
-
-        # Sidebar Logo
-        self.logo_image = ImageTk.PhotoImage(self.logo_image)
-
-        logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
-        logo_label.pack(pady=10)  
+    
+    
+        # def __init__(self):
+        #     super().__init__()
+        #     self.title("Minux is more!")
+        #     self.geometry(f"{1100}x{580}")  
+        #     icon_size = (50, 50)  
         
 
-        # Sidebar Buttons
-        self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
-        self.sidebar_dashboard_button.pack(padx=20, pady=10)
-        self.add_tab_button = ctk.CTkButton(self.sidebar_frame, text="Media", command=self.show_add_widget_dialog)
-        self.add_tab_button.pack(padx=20, pady=10)
+        # self.power_image = ctk.CTkImage(Image.open("./media/icons/power.png").resize(icon_size))
+        # self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
+        
+        # self.config = configparser.ConfigParser()
+        # self.config.read('configs/minux.ini') 
+        # self.logo_path = self.config.get('images', 'logo')  
+        # self.logo_image = Image.open(self.logo_path).resize((106, 95)) 
+
+
+        # # Check for platform and maximize accordingly
+        # if platform.system() == "Windows":
+        #     self.state("zoomed")
+        # elif platform.system() == "Darwin": 
+        #     self.attributes("-fullscreen", True)
+        # else:
+        #     self.attributes('-zoomed', True)
+
+        # self.grid_columnconfigure(1, weight=1)
+        # self.grid_columnconfigure((2, 3), weight=0)
+        # self.grid_rowconfigure((0, 1, 2), weight=1)
+        # self.grid_rowconfigure(4, weight=0)
+
+    #     # Status Bar
+    #     self.status_bar_frame = ctk.CTkFrame(self, height=icon_size[0], fg_color="gray", corner_radius=0)
+    #     self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
+    #     self.status_bar_frame.grid_columnconfigure(1, weight=1)
+    #     self.status_bar_frame.grid_propagate(False)
+        
+    #    # Sidebar
+    #     self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
+    #     self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
+
+    #     # Status bar time label
+    #     self.status_bar_label = ctk.CTkLabel(self.status_bar_frame, text="")
+    #     self.status_bar_label.grid(row=0, column=3, padx=1, sticky="e")
+    #     self.update_time()
+
+    #     # Sidebar Logo
+    #     self.logo_image = ImageTk.PhotoImage(self.logo_image)
+
+    #     logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
+    #     logo_label.pack(pady=10)  
+        
+
+    #     # Sidebar Buttons
+    #     self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
+    #     self.sidebar_dashboard_button.pack(padx=20, pady=10)
+    #     self.add_tab_button = ctk.CTkButton(self.sidebar_frame, text="Media", command=self.show_add_widget_dialog)
+    #     self.add_tab_button.pack(padx=20, pady=10)
         
         
         
         
-        self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
-        self.sidebar_music_companion_button.pack(padx=20, pady=10)
-        self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
-        self.sidebar_vault_button.pack(padx=20, pady=10)
-        self.sidebar_conversation_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
-        self.sidebar_conversation_button.pack(padx=20, pady=10)
-        self.sidebar_data_science_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
-        self.sidebar_data_science_button.pack(padx=20, pady=10)
+    #     self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
+    #     self.sidebar_music_companion_button.pack(padx=20, pady=10)
+    #     self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
+    #     self.sidebar_vault_button.pack(padx=20, pady=10)
+    #     self.sidebar_conversation_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
+    #     self.sidebar_conversation_button.pack(padx=20, pady=10)
+    #     self.sidebar_data_science_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
+    #     self.sidebar_data_science_button.pack(padx=20, pady=10)
 
 
-        # Main Content Panels
-        self.panel1 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        self.panel2 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        self.panel3 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        # # Main Content Panels
+        # self.panel1 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        # self.panel2 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        # self.panel3 = ctk.CTkFrame(self, width=250, corner_radius=0)
 
-        # Status Bar Buttons for Panel Switching
-        self.power_button = ctk.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
+        # # Status Bar Buttons for Panel Switching
+        # self.power_button = ctk.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
 
-        self.power_button.grid(row=0, column=0, padx=1, pady=1)
-        self.status_button_2 = ctk.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
-        self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
-        self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
-        self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
+        # self.power_button.grid(row=0, column=0, padx=1, pady=1)
+        # self.status_button_2 = ctk.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
+        # self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
+        # self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
+        # self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
-        self.widgets = []
+        # self.widgets = []
 
-        self.show_dashboard()
+        # self.show_dashboard()
         
     def show_add_widget_dialog(self):
         dialog = ctk.CTkToplevel(self)
