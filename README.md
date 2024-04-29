@@ -17,9 +17,16 @@ Minux is more :)
 
 ## Setup and Installation
 
+Create a python virtual environment
 
+Activate it
 
-4. Run the application:
+Install requirements
+```bash
+pip install -r minux_requirements.txt
+```
+
+Run the application:
 
     ```bash
     python minux.py
