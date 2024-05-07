@@ -14,9 +14,7 @@ ctk.set_default_color_theme("blue")
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='navigator.log',
-                    filemode='a')
+                    datefmt='%Y-%m-%d %H:%M:%S', filename='navigator.log', filemode='a')
 
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
@@ -103,33 +101,33 @@ class App(ctk.CTk):
         
         
         
-    #     self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
-    #     self.sidebar_music_companion_button.pack(padx=20, pady=10)
-    #     self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
-    #     self.sidebar_vault_button.pack(padx=20, pady=10)
-    #     self.sidebar_conversation_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
-    #     self.sidebar_conversation_button.pack(padx=20, pady=10)
-    #     self.sidebar_data_science_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
-    #     self.sidebar_data_science_button.pack(padx=20, pady=10)
+        self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
+        self.sidebar_music_companion_button.pack(padx=20, pady=10)
+        self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
+        self.sidebar_vault_button.pack(padx=20, pady=10)
+        self.sidebar_conversation_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
+        self.sidebar_conversation_button.pack(padx=20, pady=10)
+        self.sidebar_data_science_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
+        self.sidebar_data_science_button.pack(padx=20, pady=10)
 
 
-        # # Main Content Panels
-        # self.panel1 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        # self.panel2 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        # self.panel3 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        # Main Content Panels
+        self.panel1 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        self.panel2 = ctk.CTkFrame(self, width=250, corner_radius=0)
+        self.panel3 = ctk.CTkFrame(self, width=250, corner_radius=0)
 
-        # # Status Bar Buttons for Panel Switching
-        # self.power_button = ctk.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
+        # Status Bar Buttons for Panel Switching
+        self.power_button = ctk.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
 
-        # self.power_button.grid(row=0, column=0, padx=1, pady=1)
-        # self.status_button_2 = ctk.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
-        # self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
-        # self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
-        # self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
+        self.power_button.grid(row=0, column=0, padx=1, pady=1)
+        self.status_button_2 = ctk.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
+        self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
+        self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
+        self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
         
-        # self.widgets = []
+        self.widgets = []
 
-        # self.show_dashboard()
+        self.show_dashboard()
         
     def show_add_widget_dialog(self):
         dialog = ctk.CTkToplevel(self)
