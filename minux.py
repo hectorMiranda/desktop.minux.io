@@ -48,9 +48,15 @@ class App(ctk.CTk):
         
         
         self.logo_image = ImageTk.PhotoImage(self.logo_image)
+        
+               # Sidebar
+        self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
+        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
 
         logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
         logo_label.pack(pady=10)  
+        
+        
         
 
         # Sidebar Buttons
@@ -81,9 +87,7 @@ class App(ctk.CTk):
         self.status_bar_frame.grid_columnconfigure(1, weight=1)
         self.status_bar_frame.grid_propagate(False)
         
-       # Sidebar
-        # self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
-        # self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
+
         
         
         self.status_bar_label = ctk.CTkLabel(self.status_bar_frame, text="")
