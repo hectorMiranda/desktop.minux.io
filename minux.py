@@ -8,7 +8,6 @@ import configparser
 import json
 from ui.widgets.widgets import StatusBar, SideBar
 
-
 ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
 
@@ -42,19 +41,12 @@ class App(ctk.CTk):
         self.config = configparser.ConfigParser()
         self.config.read('configs/minux.ini') 
         self.logo_path = self.config.get('images', 'logo')  
-        self.logo_image = Image.open(self.logo_path).resize((106, 95)) 
-        
-        
+        self.logo_image = Image.open(self.logo_path).resize((106, 95))         
         self.logo_image = ImageTk.PhotoImage(self.logo_image)
-        
-               # Sidebar
         self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-
         logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
         logo_label.pack(pady=10)  
-        
-        
         
 
         # Sidebar Buttons
