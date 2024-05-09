@@ -23,7 +23,7 @@ SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_accoun
 class App(ctk.CTk):  
     def __init__(self):
         super().__init__()
-        self.title("Minux is more!")
+        self.title("Minux")
         self.geometry("1100x580")
 
         icon_size = (50, 50)
@@ -32,7 +32,8 @@ class App(ctk.CTk):
         if platform.system() == "Windows":
             self.state("zoomed")
         elif platform.system() == "Darwin": 
-            self.attributes("-fullscreen", True)
+            #self.attributes("-fullscreen", True)
+            print("Darwin")
         else:
             self.attributes('-zoomed', True)
 
@@ -48,21 +49,15 @@ class App(ctk.CTk):
         self.logo_image = ImageTk.PhotoImage(self.logo_image)
         self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
+        logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="Logo label")
         logo_label.pack(pady=10)  
-        
-
-        # Sidebar Buttons
         self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
-        self.sidebar_dashboard_button.pack(padx=20, pady=10)
+        self.sidebar_dashboard_button.pack(padx=30, pady=30)
         self.add_tab_button = ctk.CTkButton(self.sidebar_frame, text="Media", command=self.show_add_widget_dialog)
         self.add_tab_button.pack(padx=20, pady=10)
-
         self.power_image = ctk.CTkImage(Image.open("./media/icons/power.png").resize(icon_size))
         self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
         
-
-
         self.status_bar = StatusBar(self, icon_size)
         self.sidebar = SideBar(self)
 
@@ -73,28 +68,16 @@ class App(ctk.CTk):
         self.sidebar.add_button("Conversation", self.show_conversation)
         self.sidebar.add_button("Data Science", self.show_dashboard)
         
-        
-            #     # Status Bar
         self.status_bar_frame = ctk.CTkFrame(self, height=icon_size[0], fg_color="gray", corner_radius=0)
         self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
         self.status_bar_frame.grid_columnconfigure(1, weight=1)
         self.status_bar_frame.grid_propagate(False)
-        
-
         
         
         self.status_bar_label = ctk.CTkLabel(self.status_bar_frame, text="")
         self.status_bar_label.grid(row=0, column=3, padx=1, sticky="e")
         self.update_time()
     
-    
-
-       
-
-
-        
-        
-        
         
         self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
         self.sidebar_music_companion_button.pack(padx=20, pady=10)
@@ -278,36 +261,36 @@ class App(ctk.CTk):
         self.after(1000, self.update_time)
         
     def show_dashboard(self):
-        print("Dashboard")
-        # self.clear_panels()
-        # label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-        # label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+        
+        self.clear_panels()
+        label = ctk.CTkLabel(self.panel1, text="Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
+        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
 
-        # # Example widgets for the dashboard
-        # # Widget 1: System Status
-        # status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
-        # status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
+        # Example widgets for the dashboard
+        # Widget 1: System Status
+        status_label = ctk.CTkLabel(self.panel1, text="System Status:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        status_label.grid(row=1, column=0, pady=(10, 0), sticky="w")
+        status_value = ctk.CTkLabel(self.panel1, text="Online", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        status_value.grid(row=1, column=1, pady=(10, 0), sticky="w")
 
-        # # Widget 2: CPU Usage
-        # cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
-        # cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
+        # Widget 2: CPU Usage
+        cpu_label = ctk.CTkLabel(self.panel1, text="CPU Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        cpu_label.grid(row=2, column=0, pady=(10, 0), sticky="w")
+        cpu_value = ctk.CTkLabel(self.panel1, text="45%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        cpu_value.grid(row=2, column=1, pady=(10, 0), sticky="w")
 
-        # # Widget 3: Memory Usage
-        # memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
-        # memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
-        # memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
+        # Widget 3: Memory Usage
+        memory_label = ctk.CTkLabel(self.panel1, text="Memory Usage:", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        memory_label.grid(row=3, column=0, pady=(10, 0), sticky="w")
+        memory_value = ctk.CTkLabel(self.panel1, text="32%", anchor="w", padx=20, font=ctk.CTkFont(size=14))
+        memory_value.grid(row=3, column=1, pady=(10, 0), sticky="w")
 
-        # # Ensure all labels are in the first column, values in the second
-        # self.panel1.grid_columnconfigure(0, weight=1)
-        # self.panel1.grid_columnconfigure(1, weight=1)
+        # Ensure all labels are in the first column, values in the second
+        self.panel1.grid_columnconfigure(0, weight=1)
+        self.panel1.grid_columnconfigure(1, weight=1)
 
-        # # Display the panel after setting it up
-        # self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
+        # Display the panel after setting it up
+        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
 
     def show_conversation(self):
