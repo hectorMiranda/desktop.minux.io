@@ -6,7 +6,10 @@ from PIL import Image, ImageTk
 import logging
 import configparser
 import json
-from ui.widgets.widgets import StatusBar, SideBar
+from ui.status_bar import StatusBar
+from ui.sidebar import SideBar
+from ui.widgets.common import Clock, Timer, StopWatch, Alarm, Doge
+
 
 ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
