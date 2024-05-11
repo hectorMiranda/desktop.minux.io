@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Minux 3D World</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Load particle system component -->
+    <script src="https://unpkg.com/aframe-particle-system-component/dist/aframe-particle-system-component.min.js"></script>
+</head>
+<body>
+    <a-scene background="color: #000">
+        <!-- Skybox -->
+        <a-sky color="#1E1E1E"></a-sky>
+        
+        <!-- Floating Text with Pulse Animation -->
+        <a-text value="minux" position="0 2 -4" rotation="0 0 0" color="#29B6F6" scale="3 3 3"
+                animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 10000"
+                animation__scale="property: scale; dir: alternate; dur: 2000; loop: true; from: 3 3 3; to: 3.5 3.5 3.5; easing: easeInOutSine">
+        </a-text>
+        
+        <!-- Particle System -->
+        <a-entity particle-system="preset: dust; color: #FFFFFF, #29B6F6; particleCount: 2000;"></a-entity>
+        
+        <!-- Ground -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#111"></a-plane>
+        
+        <!-- Lighting -->
+        <a-light type="ambient" color="#444"></a-light>
+        <a-light type="point" intensity="1" position="2 4 -4" color="#29B6F6"></a-light>
+        <a-light type="directional" position="-3 6 -3" intensity="0.5" color="#FFF"></a-light>
+        
+        <!-- Camera with Look Controls -->
+        <a-entity position="0 1.6 0">
+            <a-camera look-controls-enabled="true"></a-camera>
+        </a-entity>
+    </a-scene>
+</body>
+</html>
