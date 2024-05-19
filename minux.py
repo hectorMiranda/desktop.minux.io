@@ -345,41 +345,70 @@ class App(ctk.CTk):
 
 
 
-    # def show_music_companion(self):
-    #     self.clear_panels()
-    #     label = ctk.CTkLabel(self.panel2, text="Music companion", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-    #     label.grid(row=0, column=0, pady=(10, 10), sticky="w")
-        
-    #     # Display the panel after setting it up
-    #     self.panel2.grid(row=0, column=1, rowspan=3, sticky="nsew")
     def show_music_companion(self):
         self.clear_panels()
-        label = ctk.CTkLabel(self.panel2, text="Music Companion", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
+
+        # Create a main frame to hold both the file list and details panel
+        main_frame = ctk.CTkFrame(self.panel2)
+        main_frame.grid(row=0, column=0, pady=10, padx=10, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(0, weight=1)
+
+        # Create a scrollable frame for the file list
+        file_list_frame = ctk.CTkFrame(main_frame)
+        file_list_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        file_list_frame.grid_rowconfigure(0, weight=1)
+        file_list_frame.grid_columnconfigure(0, weight=1)
+
+        # Scrollable Canvas
+        canvas = ctk.CTkCanvas(file_list_frame)
+        canvas.grid(row=0, column=0, sticky="nsew")
+
+        scrollbar = ctk.CTkScrollbar(file_list_frame, orientation="vertical", command=canvas.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        file_list_inner_frame = ctk.CTkFrame(canvas)
+        canvas.create_window((0, 0), window=file_list_inner_frame, anchor="nw")
+
+        file_list_inner_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Details Panel
+        self.details_panel = ctk.CTkFrame(main_frame, width=300)
+        self.details_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+
+        label = ctk.CTkLabel(file_list_frame, text="Music Companion", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
         label.grid(row=0, column=0, pady=(10, 10), sticky="w")
-        
+
         scores_path = 'media/scores'
         if os.path.exists(scores_path):
             row = 1
             for file_name in os.listdir(scores_path):
                 file_path = os.path.join(scores_path, file_name)
                 if os.path.isfile(file_path):
-                    file_label = ctk.CTkLabel(self.panel2, text=file_name, anchor="w", padx=20, font=ctk.CTkFont(size=14))
-                    file_label.grid(row=row, column=0, pady=(5, 0), sticky="w")
-
-                    if file_name.endswith('.pdf'):
-                        pdf_info = self.get_pdf_info(file_path)
-                        info_label = ctk.CTkLabel(self.panel2, text=pdf_info, anchor="w", padx=20, font=ctk.CTkFont(size=12))
-                        info_label.grid(row=row, column=1, pady=(5, 0), sticky="w")
-                    
-                    elif file_name.endswith('.mscz'):
-                        mscz_info = "MuseScore file"
-                        info_label = ctk.CTkLabel(self.panel2, text=mscz_info, anchor="w", padx=20, font=ctk.CTkFont(size=12))
-                        info_label.grid(row=row, column=1, pady=(5, 0), sticky="w")
-                    
+                    file_button = ctk.CTkButton(file_list_inner_frame, text=file_name, anchor="w", padx=20, font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
+                    file_button.grid(row=row, column=0, pady=(5, 0), sticky="w")
                     row += 1
         
         # Display the panel after setting it up
         self.panel2.grid(row=0, column=1, rowspan=3, sticky="nsew")
+
+    def show_file_details(self, file_path):
+        # Clear previous details
+        for widget in self.details_panel.winfo_children():
+            widget.destroy()
+
+        file_name = os.path.basename(file_path)
+        file_label = ctk.CTkLabel(self.details_panel, text=file_name, anchor="w", padx=20, font=ctk.CTkFont(size=16, weight="bold"))
+        file_label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+
+        if file_path.endswith('.pdf'):
+            pdf_info = self.get_pdf_info(file_path)
+            info_label = ctk.CTkLabel(self.details_panel, text=pdf_info, anchor="w", padx=20, font=ctk.CTkFont(size=12))
+            info_label.grid(row=1, column=0, pady=(5, 0), sticky="w")
+        elif file_path.endswith('.mscz'):
+            mscz_info = "MuseScore file"
+            info_label = ctk.CTkLabel(self.details_panel, text=mscz_info, anchor="w", padx=20, font=ctk.CTkFont(size=12))
+            info_label.grid(row=1, column=0, pady=(5, 0), sticky="w")
 
     def get_pdf_info(self, file_path):
         try:
@@ -388,7 +417,7 @@ class App(ctk.CTk):
             pdf_info = f"Title: {info['title']}\nAuthor: {info['author']}\nPages: {doc.page_count}"
             return pdf_info
         except Exception as e:
-            return f"Error reading PDF: {e}"    
+            return f"Error reading PDF: {e}"
         
     
 
