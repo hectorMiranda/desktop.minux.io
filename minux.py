@@ -385,8 +385,8 @@ class App(ctk.CTk):
             for file_name in os.listdir(scores_path):
                 file_path = os.path.join(scores_path, file_name)
                 if os.path.isfile(file_path):
-                    file_button = ctk.CTkButton(file_list_inner_frame, text=file_name, anchor="w", padx=20, font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
-                    file_button.grid(row=row, column=0, pady=(5, 0), sticky="w")
+                    file_button = ctk.CTkButton(file_list_inner_frame, text=file_name, anchor="w", font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
+                    file_button.grid(row=row, column=0, pady=(5, 0), padx=(20, 0), sticky="w")
                     row += 1
         
         # Display the panel after setting it up
