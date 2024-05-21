@@ -356,7 +356,7 @@ class App(ctk.CTk):
 
         # Create a scrollable frame for the file list
         file_list_frame = ctk.CTkFrame(main_frame)
-        file_list_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        file_list_frame.grid(row=0, column=0, sticky="nsw", padx=10, pady=10)
         file_list_frame.grid_rowconfigure(0, weight=1)
         file_list_frame.grid_columnconfigure(0, weight=1)
 
@@ -375,18 +375,16 @@ class App(ctk.CTk):
         # Details Panel
         self.details_panel = ctk.CTkFrame(main_frame, width=300)
         self.details_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-
-        label = ctk.CTkLabel(file_list_frame, text="Music Companion", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-        label.grid(row=0, column=0, pady=(10, 10), sticky="w")
+        self.details_panel.grid_columnconfigure(0, weight=1)
 
         scores_path = 'media/scores'
         if os.path.exists(scores_path):
-            row = 1
+            row = 0
             for file_name in os.listdir(scores_path):
                 file_path = os.path.join(scores_path, file_name)
                 if os.path.isfile(file_path):
                     file_button = ctk.CTkButton(file_list_inner_frame, text=file_name, anchor="w", font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
-                    file_button.grid(row=row, column=0, pady=(5, 0), padx=(20, 0), sticky="w")
+                    file_button.grid(row=row, column=0, pady=(5, 0), padx=(5, 5), sticky="ew")
                     row += 1
         
         # Display the panel after setting it up
