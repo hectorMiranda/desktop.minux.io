@@ -9,17 +9,32 @@ import json
 from ui.status_bar import StatusBar
 from ui.sidebar import SideBar
 from ui.widgets.common import Clock, Timer, StopWatch, Alarm, Doge
+from handlers.FilteredStreamHandler import FilteredStreamHandler
 import fitz 
+import sys
 
 
 ctk.set_appearance_mode("Light")  
 ctk.set_default_color_theme("blue")  
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S', filename='navigator.log', filemode='a')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S', filename='navigator.log', filemode='a')
+# logger = logging.getLogger()
+# handler = FilteredStreamHandler(sys.stderr)
+# logger.addHandler(handler)
+# logger.propagate = False
+
+os.environ["PYTHONWARNINGS"] = "ignore:ApplePersistenceIgnoreState"
+
+
+
+
 
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
+
+if SERVICE_ACCOUNT_KEY_PATH == 'service_account_key.json':
+    warning_message = 'Service account key path not set, using default: service_account_key.json'
+    logging.warning(warning_message)
+    print(warning_message)
 
 class App(ctk.CTk):  
     def __init__(self):
