@@ -61,8 +61,8 @@ class App(ctk.CTk):
         self.config = configparser.ConfigParser()
         self.config.read('configs/minux.ini') 
         self.logo_path = self.config.get('images', 'logo')  
-        self.logo_image = Image.open(self.logo_path).resize((106, 95))         
-        self.logo_image = ImageTk.PhotoImage(self.logo_image)
+        logo_pil = Image.open(self.logo_path).resize((106, 95))         
+        self.logo_image = ctk.CTkImage(dark_image=logo_pil, light_image=logo_pil, size=(106, 95))
         self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="Logo label")
@@ -136,11 +136,16 @@ class App(ctk.CTk):
 
     def add_widget(self, widget_type):
         widget = None
+        # Get the current number of widgets to determine the next row
+        next_row = len(self.widgets)
+        
         if widget_type == "TODO":
             widget = ctk.CTkLabel(self.panel1, text="TODO Widget")
         elif widget_type == "Voice":
             widget = ctk.CTkLabel(self.panel1, text="Voice Recorder Widget")
-        widget.pack()
+        
+        # Use grid instead of pack
+        widget.grid(row=next_row + 1, column=0, pady=10, padx=20, sticky="w")  # +1 to account for title row
         self.widgets.append({"type": widget_type, "widget": widget})
         self.save_widgets()
 
@@ -157,21 +162,21 @@ class App(ctk.CTk):
                     self.add_widget(widget_type)
                     
                     
-    def save_transparency(transparency):
+    def save_transparency(self, transparency):
         with open('settings.txt', 'w') as file:
             file.write(str(transparency))
         
-    def load_transparency():
+    def load_transparency(self):
         try:
             with open('settings.txt', 'r') as file:
                 return float(file.read())
         except (FileNotFoundError, ValueError):
             return 1.0  # Default transparency
 
-    def update_transparency(value):
+    def update_transparency(self, value):
         transparency = float(value)
-        root.attributes('-alpha', transparency)
-        save_transparency(transparency)
+        self.attributes('-alpha', transparency)
+        self.save_transparency(transparency)
         
     def quit_app(self):
         confirmation_dialog = ctk.CTkToplevel(self)
