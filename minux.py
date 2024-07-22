@@ -124,30 +124,64 @@ class App(ctk.CTk):
         self.show_dashboard()
         
     def show_add_widget_dialog(self):
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Media")
-        dialog.geometry("300x200")
+        self.clear_panels()
+        
+        # Create a title for the media section
+        title_label = ctk.CTkLabel(self.panel1, text="Media Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
+        title_label.grid(row=0, column=0, columnspan=2, pady=(10, 20), sticky="w")
 
-        todo_button = ctk.CTkButton(dialog, text="TODO Widget", command=lambda: self.add_widget("TODO"))
-        todo_button.pack(pady=10)
+        # Create a toolbar frame for media options
+        media_toolbar = ctk.CTkFrame(self.panel1)
+        media_toolbar.grid(row=1, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="ew")
+        media_toolbar.grid_columnconfigure((0, 1), weight=1)
 
-        voice_button = ctk.CTkButton(dialog, text="Voice Recorder Widget", command=lambda: self.add_widget("Voice"))
-        voice_button.pack(pady=10)
+        # Add media widget buttons with modern styling
+        todo_button = ctk.CTkButton(
+            media_toolbar, 
+            text="TODO Widget",
+            command=lambda: self.add_widget("TODO"),
+            fg_color="#2B2B2B",
+            hover_color="#3B3B3B",
+            height=40,
+            corner_radius=8
+        )
+        todo_button.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        voice_button = ctk.CTkButton(
+            media_toolbar, 
+            text="Voice Recorder",
+            command=lambda: self.add_widget("Voice"),
+            fg_color="#2B2B2B",
+            hover_color="#3B3B3B",
+            height=40,
+            corner_radius=8
+        )
+        voice_button.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+
+        # Add a content area for widgets
+        self.widget_area = ctk.CTkFrame(self.panel1)
+        self.widget_area.grid(row=2, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="nsew")
+        self.panel1.grid_rowconfigure(2, weight=1)
+
+        # Display the panel
+        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     def add_widget(self, widget_type):
+        if not hasattr(self, 'widget_area'):
+            return
+
         widget = None
-        # Get the current number of widgets to determine the next row
         next_row = len(self.widgets)
         
         if widget_type == "TODO":
-            widget = ctk.CTkLabel(self.panel1, text="TODO Widget")
+            widget = ctk.CTkLabel(self.widget_area, text="TODO Widget", fg_color="#1E1E1E", corner_radius=8)
         elif widget_type == "Voice":
-            widget = ctk.CTkLabel(self.panel1, text="Voice Recorder Widget")
+            widget = ctk.CTkLabel(self.widget_area, text="Voice Recorder Widget", fg_color="#1E1E1E", corner_radius=8)
         
-        # Use grid instead of pack
-        widget.grid(row=next_row + 1, column=0, pady=10, padx=20, sticky="w")  # +1 to account for title row
-        self.widgets.append({"type": widget_type, "widget": widget})
-        self.save_widgets()
+        if widget:
+            widget.grid(row=next_row, column=0, pady=10, padx=20, sticky="ew")
+            self.widgets.append({"type": widget_type, "widget": widget})
+            self.save_widgets()
 
     def save_widgets(self):
         with open('widgets.json', 'w') as f:
