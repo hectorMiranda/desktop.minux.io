@@ -240,6 +240,31 @@ class App(ctk.CTk):
         menubar.add_cascade(label="View", menu=view_menu)
         view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
 
+        # Themes menu
+        themes_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Themes", menu=themes_menu)
+        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
+        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
+        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
+        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
+        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
+
+    def change_theme(self, theme_name):
+        """Change the application's color theme"""
+        if theme_name == "blue":
+            ctk.set_default_color_theme("blue")
+        elif theme_name == "green":
+            ctk.set_default_color_theme("green")
+        elif theme_name == "dark":
+            ctk.set_appearance_mode("Dark")
+        elif theme_name == "light":
+            ctk.set_appearance_mode("Light")
+        elif theme_name == "system":
+            ctk.set_appearance_mode("System")
+        
+        # Refresh the UI to apply the new theme
+        self.update()
+
     def create_terminal(self):
         self.terminal_frame = ctk.CTkFrame(self, height=150, fg_color="#1E1E1E")
         
@@ -293,17 +318,27 @@ class App(ctk.CTk):
         )
         close_button.pack(side="left", padx=5)
 
+        # Create a frame for the terminal with scrollbar
+        terminal_container = ctk.CTkFrame(self.terminal_frame, fg_color="transparent")
+        terminal_container.pack(fill="both", expand=True)
+
         # Terminal output area with scrolling
         self.terminal = ctk.CTkTextbox(
-            self.terminal_frame, 
+            terminal_container, 
             fg_color="#1E1E1E", 
             text_color="#FFFFFF",
             height=150,
-            font=("Consolas" if platform.system() == "Windows" else "Monaco", 12)
+            font=("Consolas" if platform.system() == "Windows" else "Monaco", 12),
+            wrap="word"
         )
-        self.terminal.pack(fill="both", expand=True)
+        self.terminal.pack(side="left", fill="both", expand=True)
         
-        # Configure tags for different log levels using the underlying tkinter Text widget
+        # Add scrollbar
+        scrollbar = ctk.CTkScrollbar(terminal_container, command=self.terminal.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.terminal.configure(yscrollcommand=scrollbar.set)
+        
+        # Configure tags for different log levels using the underlying Text widget
         self.terminal._textbox.tag_configure("error", foreground="#FF6B68")
         self.terminal._textbox.tag_configure("warning", foreground="#FFD700")
         self.terminal._textbox.tag_configure("info", foreground="#6A9955")
@@ -313,6 +348,7 @@ class App(ctk.CTk):
         welcome_msg = "Welcome to Minux Terminal\n"
         welcome_msg += "=" * 50 + "\n"
         self.terminal._textbox.insert("end", welcome_msg)
+        self.terminal._textbox.see("end")
         
         # Create and start the queue listener
         self.log_listener = logging.handlers.QueueListener(
@@ -325,15 +361,15 @@ class App(ctk.CTk):
     def clear_terminal(self):
         """Clear the terminal content"""
         # Clear all text
-        self.terminal.delete("0.0", "end")
+        self.terminal._textbox.delete("0.0", "end")
         
         # Insert welcome message
         welcome_msg = "Welcome to Minux Terminal\n"
         welcome_msg += "=" * 50 + "\n"
-        self.terminal.insert("0.0", welcome_msg)
+        self.terminal._textbox.insert("0.0", welcome_msg)
         
-        # Force update
-        self.terminal.update()
+        # Force update and scroll to end
+        self.terminal._textbox.update()
         self.terminal._textbox.see("end")
 
     def terminal_handler(self, record):
@@ -367,10 +403,8 @@ class App(ctk.CTk):
             # Insert the message with the appropriate tag using the underlying Text widget
             self.terminal._textbox.insert("end", msg, tag)
             
-            # Scroll to the end
+            # Scroll to the end and force update
             self.terminal._textbox.see("end")
-            
-            # Force update the UI
             self.terminal._textbox.update()
             
         except Exception as e:
@@ -392,32 +426,130 @@ class App(ctk.CTk):
         title_label.grid(row=0, column=0, columnspan=2, pady=(10, 20), sticky="w")
 
         # Create a toolbar frame for media options
-        media_toolbar = ctk.CTkFrame(self.panel1)
+        media_toolbar = ctk.CTkFrame(self.panel1, fg_color="#F3F3F3", height=110)
         media_toolbar.grid(row=1, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="ew")
-        media_toolbar.grid_columnconfigure((0, 1), weight=1)
+        media_toolbar.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
+        media_toolbar.grid_propagate(False)
 
-        # Add media widget buttons with modern styling
-        todo_button = ctk.CTkButton(
-            media_toolbar, 
-            text="TODO Widget",
-            command=lambda: self.add_widget("TODO"),
-            fg_color="#2B2B2B",
-            hover_color="#3B3B3B",
-            height=40,
-            corner_radius=8
+        # Create section frames
+        tasks_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
+        tasks_section.grid(row=0, column=0, padx=10, pady=5)
+        
+        notes_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
+        notes_section.grid(row=0, column=1, padx=10, pady=5)
+        
+        calendar_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
+        calendar_section.grid(row=0, column=2, padx=10, pady=5)
+        
+        files_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
+        files_section.grid(row=0, column=3, padx=10, pady=5)
+        
+        voice_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
+        voice_section.grid(row=0, column=4, padx=10, pady=5)
+
+        # Section labels
+        tasks_label = ctk.CTkLabel(tasks_section, text="Tasks", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
+        tasks_label.pack(pady=(0, 5))
+        
+        notes_label = ctk.CTkLabel(notes_section, text="Notes", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
+        notes_label.pack(pady=(0, 5))
+        
+        calendar_label = ctk.CTkLabel(calendar_section, text="Calendar", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
+        calendar_label.pack(pady=(0, 5))
+        
+        files_label = ctk.CTkLabel(files_section, text="Files", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
+        files_label.pack(pady=(0, 5))
+        
+        voice_label = ctk.CTkLabel(voice_section, text="Voice", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
+        voice_label.pack(pady=(0, 5))
+
+        # Load and resize icons
+        todo_icon = ctk.CTkImage(
+            Image.open("./media/icons/todo.png").resize((32, 32)),
+            size=(32, 32)
         )
-        todo_button.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        notes_icon = ctk.CTkImage(
+            Image.open("./media/icons/notes.png").resize((32, 32)),
+            size=(32, 32)
+        )
+        calendar_icon = ctk.CTkImage(
+            Image.open("./media/icons/calendar.png").resize((32, 32)),
+            size=(32, 32)
+        )
+        files_icon = ctk.CTkImage(
+            Image.open("./media/icons/files.png").resize((32, 32)),
+            size=(32, 32)
+        )
+        voice_icon = ctk.CTkImage(
+            Image.open("./media/icons/microphone.png").resize((32, 32)),
+            size=(32, 32)
+        )
+
+        # Create buttons with icons
+        todo_button = ctk.CTkButton(
+            tasks_section, 
+            text="",
+            image=todo_icon,
+            command=lambda: self.add_widget("TODO"),
+            fg_color="#FFFFFF",
+            hover_color="#E6E6E6",
+            width=50,
+            height=50,
+            corner_radius=6
+        )
+        todo_button.pack()
+
+        notes_button = ctk.CTkButton(
+            notes_section, 
+            text="",
+            image=notes_icon,
+            command=lambda: self.add_widget("Notes"),
+            fg_color="#FFFFFF",
+            hover_color="#E6E6E6",
+            width=50,
+            height=50,
+            corner_radius=6
+        )
+        notes_button.pack()
+
+        calendar_button = ctk.CTkButton(
+            calendar_section, 
+            text="",
+            image=calendar_icon,
+            command=lambda: self.add_widget("Calendar"),
+            fg_color="#FFFFFF",
+            hover_color="#E6E6E6",
+            width=50,
+            height=50,
+            corner_radius=6
+        )
+        calendar_button.pack()
+
+        files_button = ctk.CTkButton(
+            files_section, 
+            text="",
+            image=files_icon,
+            command=lambda: self.add_widget("Files"),
+            fg_color="#FFFFFF",
+            hover_color="#E6E6E6",
+            width=50,
+            height=50,
+            corner_radius=6
+        )
+        files_button.pack()
 
         voice_button = ctk.CTkButton(
-            media_toolbar, 
-            text="Voice Recorder",
+            voice_section, 
+            text="",
+            image=voice_icon,
             command=lambda: self.add_widget("Voice"),
-            fg_color="#2B2B2B",
-            hover_color="#3B3B3B",
-            height=40,
-            corner_radius=8
+            fg_color="#FFFFFF",
+            hover_color="#E6E6E6",
+            width=50,
+            height=50,
+            corner_radius=6
         )
-        voice_button.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        voice_button.pack()
 
         # Add a content area for widgets
         self.widget_area = ctk.CTkFrame(self.panel1)
@@ -702,9 +834,8 @@ class App(ctk.CTk):
                 for task in tasks:
                     done = 'Yes' if task.get('done') else 'No'
                     completed_date = task.get('completed_date', '')
-                    if completed_date:
-                        if isinstance(completed_date, datetime.datetime):
-                            completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
+                    if completed_date and isinstance(completed_date, datetime.datetime):
+                        completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
                     tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
 
             def load_tasks():
