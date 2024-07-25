@@ -51,194 +51,281 @@ os.environ["PYTHONWARNINGS"] = "ignore:ApplePersistenceIgnoreState"
 
 SERVICE_ACCOUNT_KEY_PATH = os.getenv('SERVICE_ACCOUNT_KEY_PATH', 'service_account_key.json')
 
-# Initialize Firebase with proper error handling
-try:
-    if not firebase_admin._apps:
-        if not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
-            logger.error(f"Service account key file not found at: {SERVICE_ACCOUNT_KEY_PATH}")
-            db = None
-        else:
-            try:
-                with open(SERVICE_ACCOUNT_KEY_PATH, 'r') as f:
-                    json.load(f)  # Validate JSON format
-                cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
-                firebase_admin.initialize_app(cred)
-                db = firestore.client()
-                logger.info("Firebase initialized successfully")
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON format in service account key file: {SERVICE_ACCOUNT_KEY_PATH}")
-                db = None
-            except Exception as e:
-                logger.error(f"Failed to initialize Firebase with error: {str(e)}")
-                db = None
-    else:
-        db = firestore.client()
-        logger.info("Using existing Firebase connection")
-except Exception as e:
-    logger.error(f"Unexpected error during Firebase initialization: {str(e)}")
-    db = None
+class TerminalHandler(logging.Handler):
+    def __init__(self, terminal):
+        super().__init__()
+        self.terminal = terminal
+        self.setLevel(logging.DEBUG)
 
-class App(ctk.CTk):  
+    def emit(self, record):
+        if not hasattr(self, 'terminal') or not self.terminal:
+            return
+            
+        try:
+            # Format the message with timestamp and level
+            msg = self.format(record)
+            if not msg.endswith("\n"):
+                msg += "\n"
+            
+            # Determine the tag based on log level
+            tag = "debug"
+            if record.levelno >= logging.ERROR:
+                tag = "error"
+            elif record.levelno >= logging.WARNING:
+                tag = "warning"
+            elif record.levelno >= logging.INFO:
+                tag = "info"
+            
+            # Insert the message at the end of the terminal
+            self.terminal._textbox.configure(state="normal")  # Enable editing
+            self.terminal._textbox.insert("end", msg, tag)
+            self.terminal._textbox.see("end")  # Scroll to the end
+            self.terminal._textbox.configure(state="disabled")  # Disable editing
+            
+        except Exception as e:
+            print(f"Error in terminal_handler: {str(e)}")
+
+    def format(self, record):
+        # Create a custom format for the log message
+        timestamp = datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
+        return f"{timestamp} - {record.levelname} - {record.getMessage()}"
+
+class MinuxApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Minux")
-        self.geometry("1100x580")
-        self.db = db  # Store the database connection
-        if self.db is None:
-            logger.error("Application started without database connection")
-
-        # Create menu bar
-        self.create_menu()
-
-        # Configure main grid
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure((2, 3), weight=0)
-        self.grid_rowconfigure((0, 1, 2), weight=1)
-        self.grid_rowconfigure(3, weight=0)  # For terminal
-        self.grid_rowconfigure(4, weight=0)  # For status bar
-        self.grid_rowconfigure(5, weight=0)  # For notification bar
-
-        # Create notification bar (hidden by default)
-        self.notification_frame = ctk.CTkFrame(self, height=25, fg_color="#2D2D2D")
-        self.notification_frame.grid(row=5, column=0, columnspan=4, sticky="nsew")
-        self.notification_frame.grid_columnconfigure(1, weight=1)
-        self.notification_frame.grid_propagate(False)
         
-        # Error icon and message label
+        # Initialize db attribute
+        self.db = None
+        
+        # Try to initialize Firebase
+        try:
+            if not firebase_admin._apps:
+                if not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
+                    logger.warning(f"Service account key file not found at: {SERVICE_ACCOUNT_KEY_PATH}")
+                else:
+                    try:
+                        cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
+                        firebase_admin.initialize_app(cred)
+                        self.db = firestore.client()
+                        logger.info("Firebase initialized successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to initialize Firebase: {str(e)}")
+            else:
+                self.db = firestore.client()
+                logger.info("Using existing Firebase connection")
+        except Exception as e:
+            logger.warning(f"Firebase initialization skipped: {str(e)}")
+            
+        # Create notification frame
+        self.notification_frame = ctk.CTkFrame(self, fg_color="#FF4444", height=30, corner_radius=0)
+        self.notification_frame.grid(row=3, column=0, columnspan=3, sticky="ew")
+        self.notification_frame.grid_remove()  # Hidden by default
+        
+        # Error icon
         self.error_icon_label = ctk.CTkLabel(
             self.notification_frame,
-            text="⚠",  # Warning icon
-            font=ctk.CTkFont(size=14),
-            text_color="#FF6B68",
-            width=25
+            text="⚠",
+            text_color="white",
+            font=ctk.CTkFont(size=16)
         )
-        self.error_icon_label.grid(row=0, column=0, padx=(5, 0))
+        self.error_icon_label.pack(side="left", padx=10)
         
+        # Notification message
         self.notification_label = ctk.CTkLabel(
             self.notification_frame,
             text="",
-            font=ctk.CTkFont(size=12),
-            text_color="#FF6B68",
-            anchor="w"
+            text_color="white",
+            font=ctk.CTkFont(size=12)
         )
-        self.notification_label.grid(row=0, column=1, sticky="w", padx=5)
+        self.notification_label.pack(side="left", fill="x", expand=True)
         
-        # Close notification button
-        self.close_notification_btn = ctk.CTkButton(
+        # Close button
+        close_btn = ctk.CTkButton(
             self.notification_frame,
             text="×",
-            width=25,
-            height=25,
+            width=20,
+            height=20,
             fg_color="transparent",
-            hover_color="#E81123",
+            hover_color="#FF6666",
             command=self.hide_notification,
-            font=ctk.CTkFont(size=14),
-            corner_radius=0
+            font=ctk.CTkFont(size=16)
         )
-        self.close_notification_btn.grid(row=0, column=2, padx=(0, 5))
-        
-        # Hide notification bar initially
-        self.notification_frame.grid_remove()
+        close_btn.pack(side="right", padx=5)
+            
+        # VSCode-like colors
+        self.vscode_colors = {
+            'activity_bar': '#333333',
+            'sidebar': '#252526',
+            'editor_bg': '#1e1e1e',
+            'panel_bg': '#1e1e1e',
+            'status_bar': '#007acc',
+            'tab_active': '#1e1e1e',
+            'tab_inactive': '#2d2d2d',
+            'tab_hover': '#404040'
+        }
 
-        icon_size = (50, 50)
-        logging.info(platform.system())
+        # Configure the main window
+        self.title("Minux")
+        self.geometry("1200x800")
         
-        if platform.system() == "Windows":
-            self.state("zoomed")
-        elif platform.system() == "Darwin": 
-            #self.attributes("-fullscreen", True)
-            print("Darwin")
-        else:
-            self.attributes('-zoomed', True)
+        # Configure grid weights
+        self.grid_columnconfigure(2, weight=1)  # Main content area expands
+        self.grid_rowconfigure(0, weight=1)     # Content area expands vertically
+        
+        # Create the activity bar (left-most panel)
+        self.activity_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['activity_bar'], width=48, corner_radius=0)
+        self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self.activity_bar.grid_propagate(False)
+        
+        # Create the sidebar
+        self.sidebar = ctk.CTkFrame(self, fg_color=self.vscode_colors['sidebar'], width=250, corner_radius=0)
+        self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew")
+        self.sidebar.grid_propagate(False)
+        
+        # Create main content area with tabs
+        self.content_area = ctk.CTkTabview(self, fg_color=self.vscode_colors['editor_bg'], corner_radius=0)
+        self.content_area.grid(row=0, column=2, sticky="nsew")
+        
+        # Create terminal panel
+        self.terminal_frame = ctk.CTkFrame(self, fg_color=self.vscode_colors['panel_bg'], height=200, corner_radius=0)
+        self.terminal_frame.grid(row=1, column=2, sticky="ew")
+        self.terminal_frame.grid_propagate(False)
+        
+        # Create status bar
+        self.status_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['status_bar'], height=25, corner_radius=0)
+        self.status_bar.grid(row=2, column=0, columnspan=3, sticky="ew")
+        self.status_bar.grid_propagate(False)
+        
+        # Setup UI components
+        self.setup_activity_bar()
+        self.setup_sidebar()
+        self.setup_content_area()
+        self.setup_terminal()
+        self.setup_status_bar()
+        
+        # Create the main menu
+        self.create_menu()
 
-        # Create and show terminal frame by default
-        self.terminal_visible = False  # Changed to False to hide by default
-        self.create_terminal()
-        self.terminal_frame.grid(row=3, column=0, columnspan=4, sticky="nsew")
-        self.terminal_frame.grid_remove()  # Hide terminal by default
+    def setup_activity_bar(self):
+        try:
+            # Load icons
+            explorer_icon = ctk.CTkImage(Image.open("media/icons/files.png"), size=(24, 24))
+            search_icon = ctk.CTkImage(Image.open("media/icons/search.png"), size=(24, 24))
+            git_icon = ctk.CTkImage(Image.open("media/icons/git.png"), size=(24, 24))
+            debug_icon = ctk.CTkImage(Image.open("media/icons/debug.png"), size=(24, 24))
+            extensions_icon = ctk.CTkImage(Image.open("media/icons/extensions.png"), size=(24, 24))
+            
+            # Create buttons
+            buttons = [
+                ("Explorer", explorer_icon),
+                ("Search", search_icon),
+                ("Source Control", git_icon),
+                ("Debug", debug_icon),
+                ("Extensions", extensions_icon)
+            ]
+            
+            for i, (name, icon) in enumerate(buttons):
+                btn = ctk.CTkButton(
+                    self.activity_bar,
+                    text="",
+                    image=icon,
+                    width=48,
+                    height=48,
+                    fg_color="transparent",
+                    hover_color="#505050",
+                    command=lambda w=name: self.toggle_explorer(),
+                    corner_radius=0
+                )
+                btn.grid(row=i, column=0, pady=(5, 0))
+                
+        except Exception as e:
+            print(f"Error loading activity bar icons: {e}")
 
-        # Initialize other components
-        self.config = configparser.ConfigParser()
-        self.config.read('configs/minux.ini') 
-        self.logo_path = self.config.get('images', 'logo')  
-        logo_pil = Image.open(self.logo_path).resize((106, 95))         
-        self.logo_image = ctk.CTkImage(dark_image=logo_pil, light_image=logo_pil, size=(106, 95))
-        self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        logo_label = ctk.CTkLabel(self.sidebar_frame, image=self.logo_image, text="Logo label")
-        logo_label.pack(pady=10)  
-        self.sidebar_dashboard_button = ctk.CTkButton(self.sidebar_frame, command=self.show_dashboard, text="Dashboard")
-        self.sidebar_dashboard_button.pack(padx=30, pady=30)
-        self.add_tab_button = ctk.CTkButton(self.sidebar_frame, text="Media", command=self.show_add_widget_dialog)
-        self.add_tab_button.pack(padx=20, pady=10)
-        self.power_image = ctk.CTkImage(Image.open("./media/icons/power.png").resize(icon_size))
-        self.settings_image = ctk.CTkImage(Image.open("./media/icons/settings.png").resize(icon_size))
-        
-        self.status_bar = StatusBar(self, icon_size)
-        self.sidebar = SideBar(self)
+    def setup_sidebar(self):
+        # This will be populated based on the active activity bar button
+        pass
 
-        self.sidebar.add_button("Dashboard", self.show_dashboard)
-        self.sidebar.add_button("Media", self.show_add_widget_dialog)
-        self.sidebar.add_button("Music Companion", self.show_music_companion)
-        self.sidebar.add_button("Vault", self.show_vault_panel)
-        self.sidebar.add_button("Conversation", self.show_conversation)
-        self.sidebar.add_button("Data Science", self.show_conversation)
+    def setup_content_area(self):
+        """Setup the content area with default tabs and widgets"""
+        # Add default tabs
+        welcome_tab = self.content_area.add("Welcome")
+        todo_tab = self.content_area.add("TODO List")
+        notes_tab = self.content_area.add("Notes")
         
-        # Create status bar frame (always visible)
-        self.status_bar_frame = ctk.CTkFrame(self, height=icon_size[0], fg_color="gray", corner_radius=0)
-        self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
-        self.status_bar_frame.grid_columnconfigure(1, weight=1)
-        self.status_bar_frame.grid_propagate(False)  # Prevent frame from shrinking
+        # Configure tab colors
+        self.content_area._segmented_button.configure(
+            fg_color=self.vscode_colors['tab_inactive'],
+            selected_color=self.vscode_colors['tab_active'],
+            selected_hover_color=self.vscode_colors['tab_hover']
+        )
         
-        # Configure status bar elements
-        self.power_button = ctk.CTkButton(self.status_bar_frame, image=self.power_image, command=self.quit_app, width=icon_size[0], height=icon_size[1], fg_color="gray", text="", hover_color="red", corner_radius=0)
-        self.power_button.grid(row=0, column=0, padx=1, pady=1)
+        # Add widgets to appropriate tabs
+        self.add_widget_to_tab(todo_tab, "TODO")
         
-        self.status_button_2 = ctk.CTkButton(self.status_bar_frame, text="Conversation", command=self.show_conversation, height=icon_size[1], corner_radius=0, hover_color="black")
-        self.status_button_2.grid(row=0, column=1, padx=3, sticky="w")
+        # Welcome content
+        welcome_label = ctk.CTkLabel(
+            welcome_tab, 
+            text="Welcome to Minux",
+            font=ctk.CTkFont(size=24, weight="bold")
+        )
+        welcome_label.pack(pady=20)
         
-        self.settings_button = ctk.CTkButton(self.status_bar_frame, text="", image=self.settings_image, command=self.show_settings, fg_color="gray", hover_color="orange", corner_radius=0, width=100)
-        self.settings_button.grid(row=0, column=2, padx=1, sticky="w")
-        
-        self.status_bar_label = ctk.CTkLabel(self.status_bar_frame, text="")
-        self.status_bar_label.grid(row=0, column=3, padx=1, sticky="e")
-        self.update_time()
-        
-        # Ensure status bar is always visible by configuring grid weights
-        self.grid_rowconfigure(4, weight=0, minsize=icon_size[1])  # Fixed height for status bar
-        
-        # Sidebar buttons
-        self.sidebar_music_companion_button = ctk.CTkButton(self.sidebar_frame, command=self.show_music_companion, text="Music companion")
-        self.sidebar_music_companion_button.pack(padx=20, pady=10)
-        self.sidebar_vault_button = ctk.CTkButton(self.sidebar_frame, command=self.show_vault_panel, text="Vault")
-        self.sidebar_vault_button.pack(padx=20, pady=10)
-        self.sidebar_conversation_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Conversation")
-        self.sidebar_conversation_button.pack(padx=20, pady=10)
-        self.sidebar_data_science_button = ctk.CTkButton(self.sidebar_frame, command=self.show_conversation, text="Data Science")
-        self.sidebar_data_science_button.pack(padx=20, pady=10)
+        # Add widget toolbar
+        self.create_widget_toolbar(welcome_tab)
 
-        # Main Content Panels
-        self.panel1 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        self.panel2 = ctk.CTkFrame(self, width=250, corner_radius=0)
-        self.panel3 = ctk.CTkFrame(self, width=250, corner_radius=0)
-
-        self.widgets = []
-
-        self.show_dashboard()
+    def create_widget_toolbar(self, parent):
+        """Create a toolbar for adding widgets"""
+        toolbar = ctk.CTkFrame(parent, corner_radius=0)
+        toolbar.pack(fill="x", padx=20, pady=10)
         
+        # Widget buttons
+        widgets = [
+            ("Clock", Clock),
+            ("Timer", Timer),
+            ("StopWatch", StopWatch),
+            ("Alarm", Alarm),
+            ("Doge", Doge)
+        ]
+        
+        for widget_name, widget_class in widgets:
+            btn = ctk.CTkButton(
+                toolbar,
+                text=f"Add {widget_name}",
+                command=lambda w=widget_class: self.add_widget_instance(w),
+                corner_radius=0
+            )
+            btn.pack(side="left", padx=5)
+
+    def add_widget_instance(self, widget_class):
+        """Add a widget instance to the current tab"""
+        current_tab = self.content_area.get()
+        if current_tab:
+            tab_frame = self.content_area._tab_dict[current_tab]
+            # Initialize widget with font_size parameter
+            widget = widget_class(tab_frame, font_size=12)  # You can adjust the font size as needed
+            widget.pack(pady=10)
+            if not hasattr(self, 'widgets'):
+                self.widgets = []
+            self.widgets.append({"type": widget_class.__name__, "widget": widget})
+            self.save_widgets()
+
     def create_menu(self):
+        """Create the main menu bar"""
         menubar = tk.Menu(self)
         self.configure(menu=menubar)
 
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit_app)
 
         # View menu
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="View", menu=view_menu)
         view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
+        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
 
         # Themes menu
         themes_menu = tk.Menu(menubar, tearoff=0)
@@ -248,6 +335,15 @@ class App(ctk.CTk):
         themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
         themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
         themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
+
+        # Widgets menu
+        widgets_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Widgets", menu=widgets_menu)
+        widgets_menu.add_command(label="Clock", command=lambda: self.add_widget_instance(Clock))
+        widgets_menu.add_command(label="Timer", command=lambda: self.add_widget_instance(Timer))
+        widgets_menu.add_command(label="StopWatch", command=lambda: self.add_widget_instance(StopWatch))
+        widgets_menu.add_command(label="Alarm", command=lambda: self.add_widget_instance(Alarm))
+        widgets_menu.add_command(label="Doge", command=lambda: self.add_widget_instance(Doge))
 
     def change_theme(self, theme_name):
         """Change the application's color theme"""
@@ -265,16 +361,17 @@ class App(ctk.CTk):
         # Refresh the UI to apply the new theme
         self.update()
 
-    def create_terminal(self):
-        self.terminal_frame = ctk.CTkFrame(self, height=150, fg_color="#1E1E1E")
+    def setup_terminal(self):
+        """Create and setup the terminal panel"""
+        self.terminal_frame = ctk.CTkFrame(self, height=150, fg_color="#1E1E1E", corner_radius=0)
         
         # Add terminal header with controls
-        header_frame = ctk.CTkFrame(self.terminal_frame, fg_color="#2D2D2D", height=25)
+        header_frame = ctk.CTkFrame(self.terminal_frame, fg_color="#2D2D2D", height=25, corner_radius=0)
         header_frame.pack(fill="x", side="top")
         header_frame.pack_propagate(False)
         
         # Left side: Terminal icon and title
-        left_header = ctk.CTkFrame(header_frame, fg_color="transparent")
+        left_header = ctk.CTkFrame(header_frame, fg_color="transparent", corner_radius=0)
         left_header.pack(side="left", fill="x", expand=True)
         
         terminal_icon = "⚡"
@@ -287,7 +384,7 @@ class App(ctk.CTk):
         header_label.pack(side="left", padx=10)
         
         # Right side: Controls
-        controls_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        controls_frame = ctk.CTkFrame(header_frame, fg_color="transparent", corner_radius=0)
         controls_frame.pack(side="right", fill="x")
         
         # Clear button
@@ -300,7 +397,7 @@ class App(ctk.CTk):
             hover_color="#4A4A4A",
             command=self.clear_terminal,
             font=ctk.CTkFont(size=11),
-            corner_radius=3
+            corner_radius=0
         )
         clear_button.pack(side="left", padx=5)
         
@@ -319,7 +416,7 @@ class App(ctk.CTk):
         close_button.pack(side="left", padx=5)
 
         # Create a frame for the terminal with scrollbar
-        terminal_container = ctk.CTkFrame(self.terminal_frame, fg_color="transparent")
+        terminal_container = ctk.CTkFrame(self.terminal_frame, fg_color="transparent", corner_radius=0)
         terminal_container.pack(fill="both", expand=True)
 
         # Terminal output area with scrolling
@@ -329,16 +426,17 @@ class App(ctk.CTk):
             text_color="#FFFFFF",
             height=150,
             font=("Consolas" if platform.system() == "Windows" else "Monaco", 12),
-            wrap="word"
+            wrap="word",
+            corner_radius=0
         )
         self.terminal.pack(side="left", fill="both", expand=True)
         
         # Add scrollbar
-        scrollbar = ctk.CTkScrollbar(terminal_container, command=self.terminal.yview)
+        scrollbar = ctk.CTkScrollbar(terminal_container, command=self.terminal.yview, corner_radius=0)
         scrollbar.pack(side="right", fill="y")
         self.terminal.configure(yscrollcommand=scrollbar.set)
         
-        # Configure tags for different log levels using the underlying Text widget
+        # Configure tags for different log levels
         self.terminal._textbox.tag_configure("error", foreground="#FF6B68")
         self.terminal._textbox.tag_configure("warning", foreground="#FFD700")
         self.terminal._textbox.tag_configure("info", foreground="#6A9955")
@@ -350,469 +448,333 @@ class App(ctk.CTk):
         self.terminal._textbox.insert("end", welcome_msg)
         self.terminal._textbox.see("end")
         
-        # Create and start the queue listener
+        # Create and start the queue listener with the proper handler
+        terminal_handler = TerminalHandler(self.terminal)
         self.log_listener = logging.handlers.QueueListener(
             log_queue,
-            self.terminal_handler,
+            terminal_handler,
             respect_handler_level=True
         )
         self.log_listener.start()
+        self.terminal_visible = True
 
-    def clear_terminal(self):
-        """Clear the terminal content"""
-        # Clear all text
-        self.terminal._textbox.delete("0.0", "end")
+    def setup_todo_widget(self, parent_frame):
+        """Setup the TODO widget content"""
+        # Add a title and instructions
+        header_frame = ctk.CTkFrame(parent_frame, fg_color="transparent", corner_radius=0)
+        header_frame.pack(pady=(10,0), padx=10, fill="x")
         
-        # Insert welcome message
-        welcome_msg = "Welcome to Minux Terminal\n"
-        welcome_msg += "=" * 50 + "\n"
-        self.terminal._textbox.insert("0.0", welcome_msg)
-        
-        # Force update and scroll to end
-        self.terminal._textbox.update()
-        self.terminal._textbox.see("end")
-
-    def terminal_handler(self, record):
-        """Handle log records and display them in the terminal"""
-        if not hasattr(self, 'terminal'):
-            return
-            
-        try:
-            # Format the message with timestamp and level
-            msg = f"{record.asctime} - {record.levelname} - {record.message}"
-            
-            # Add traceback information for errors
-            if record.exc_info:
-                import traceback
-                msg += "\n" + "".join(traceback.format_exception(*record.exc_info))
-            
-            # Ensure message ends with newline
-            if not msg.endswith("\n"):
-                msg += "\n"
-            
-            # Determine the tag based on log level
-            if record.levelno >= logging.ERROR:
-                tag = "error"
-            elif record.levelno >= logging.WARNING:
-                tag = "warning"
-            elif record.levelno >= logging.INFO:
-                tag = "info"
-            else:
-                tag = "debug"
-            
-            # Insert the message with the appropriate tag using the underlying Text widget
-            self.terminal._textbox.insert("end", msg, tag)
-            
-            # Scroll to the end and force update
-            self.terminal._textbox.see("end")
-            self.terminal._textbox.update()
-            
-        except Exception as e:
-            print(f"Error in terminal_handler: {str(e)}")  # Fallback error handling
-
-    def toggle_terminal(self):
-        if self.terminal_visible:
-            self.terminal_frame.grid_remove()
-            self.terminal_visible = False
-        else:
-            self.terminal_frame.grid(row=3, column=0, columnspan=4, sticky="nsew")
-            self.terminal_visible = True
-
-    def show_add_widget_dialog(self):
-        self.clear_panels()
-        
-        # Create a title for the media section
-        title_label = ctk.CTkLabel(self.panel1, text="Media Dashboard", anchor="w", padx=20, font=ctk.CTkFont(size=20, weight="bold"))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(10, 20), sticky="w")
-
-        # Create a toolbar frame for media options
-        media_toolbar = ctk.CTkFrame(self.panel1, fg_color="#F3F3F3", height=110)
-        media_toolbar.grid(row=1, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="ew")
-        media_toolbar.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
-        media_toolbar.grid_propagate(False)
-
-        # Create section frames
-        tasks_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
-        tasks_section.grid(row=0, column=0, padx=10, pady=5)
-        
-        notes_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
-        notes_section.grid(row=0, column=1, padx=10, pady=5)
-        
-        calendar_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
-        calendar_section.grid(row=0, column=2, padx=10, pady=5)
-        
-        files_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
-        files_section.grid(row=0, column=3, padx=10, pady=5)
-        
-        voice_section = ctk.CTkFrame(media_toolbar, fg_color="transparent")
-        voice_section.grid(row=0, column=4, padx=10, pady=5)
-
-        # Section labels
-        tasks_label = ctk.CTkLabel(tasks_section, text="Tasks", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
-        tasks_label.pack(pady=(0, 5))
-        
-        notes_label = ctk.CTkLabel(notes_section, text="Notes", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
-        notes_label.pack(pady=(0, 5))
-        
-        calendar_label = ctk.CTkLabel(calendar_section, text="Calendar", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
-        calendar_label.pack(pady=(0, 5))
-        
-        files_label = ctk.CTkLabel(files_section, text="Files", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
-        files_label.pack(pady=(0, 5))
-        
-        voice_label = ctk.CTkLabel(voice_section, text="Voice", font=ctk.CTkFont(size=12, weight="bold"), text_color="#444444")
-        voice_label.pack(pady=(0, 5))
-
-        # Load and resize icons
-        todo_icon = ctk.CTkImage(
-            Image.open("./media/icons/todo.png").resize((32, 32)),
-            size=(32, 32)
+        title = ctk.CTkLabel(
+            header_frame, 
+            text="TODO List", 
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#FFFFFF"
         )
-        notes_icon = ctk.CTkImage(
-            Image.open("./media/icons/notes.png").resize((32, 32)),
-            size=(32, 32)
+        title.pack(side="left")
+        
+        help_text = ctk.CTkLabel(
+            header_frame,
+            text="✓ Click 'Done' column to mark complete\n✓ Right-click for more options",
+            font=ctk.CTkFont(size=12),
+            text_color="#888888"
         )
-        calendar_icon = ctk.CTkImage(
-            Image.open("./media/icons/calendar.png").resize((32, 32)),
-            size=(32, 32)
+        help_text.pack(side="right")
+        
+        # Entry frame for adding tasks
+        entry_frame = ctk.CTkFrame(parent_frame, fg_color="transparent", corner_radius=0)
+        entry_frame.pack(pady=10, padx=10, fill="x")
+        
+        task_var = ctk.StringVar()
+        task_entry = ctk.CTkEntry(
+            entry_frame, 
+            textvariable=task_var,
+            placeholder_text="Enter a new task...",
+            height=35,
+            corner_radius=0
         )
-        files_icon = ctk.CTkImage(
-            Image.open("./media/icons/files.png").resize((32, 32)),
-            size=(32, 32)
+        task_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        # Create tree frame
+        tree_frame = ctk.CTkFrame(parent_frame, fg_color="transparent", corner_radius=0)
+        tree_frame.pack(expand=True, fill="both", pady=10, padx=10)
+
+        # Configure style for the treeview
+        style = ttk.Style()
+        style.configure(
+            "Custom.Treeview",
+            background="#2B2B2B",
+            foreground="white",
+            fieldbackground="#2B2B2B",
+            borderwidth=0,
+            rowheight=30
         )
-        voice_icon = ctk.CTkImage(
-            Image.open("./media/icons/microphone.png").resize((32, 32)),
-            size=(32, 32)
+        style.configure(
+            "Custom.Treeview.Heading",
+            background="#1E1E1E",
+            foreground="white",
+            borderwidth=1
+        )
+        style.map("Custom.Treeview",
+            background=[('selected', '#3B3B3B')],
+            foreground=[('selected', 'white')]
         )
 
-        # Create buttons with icons
-        todo_button = ctk.CTkButton(
-            tasks_section, 
-            text="",
-            image=todo_icon,
-            command=lambda: self.add_widget("TODO"),
-            fg_color="#FFFFFF",
-            hover_color="#E6E6E6",
-            width=50,
-            height=50,
-            corner_radius=6
+        # Create Treeview
+        columns = ("task", "done", "completed_date")
+        tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="headings",
+            style="Custom.Treeview"
         )
-        todo_button.pack()
+        
+        # Configure columns
+        tree.heading("task", text="Task", command=lambda: sort_tasks("task"))
+        tree.heading("done", text="Done", command=lambda: sort_tasks("done"))
+        tree.heading("completed_date", text="Completed Date", command=lambda: sort_tasks("completed_date"))
+        tree.column("task", width=300)
+        tree.column("done", width=70, anchor="center")
+        tree.column("completed_date", width=150, anchor="center")
 
-        notes_button = ctk.CTkButton(
-            notes_section, 
-            text="",
-            image=notes_icon,
-            command=lambda: self.add_widget("Notes"),
-            fg_color="#FFFFFF",
-            hover_color="#E6E6E6",
-            width=50,
-            height=50,
-            corner_radius=6
-        )
-        notes_button.pack()
+        # Add scrollbar
+        scrollbar = ctk.CTkScrollbar(tree_frame, command=tree.yview, corner_radius=0)
+        scrollbar.pack(side="right", fill="y")
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(expand=True, fill="both")
 
-        calendar_button = ctk.CTkButton(
-            calendar_section, 
-            text="",
-            image=calendar_icon,
-            command=lambda: self.add_widget("Calendar"),
-            fg_color="#FFFFFF",
-            hover_color="#E6E6E6",
-            width=50,
-            height=50,
-            corner_radius=6
-        )
-        calendar_button.pack()
-
-        files_button = ctk.CTkButton(
-            files_section, 
-            text="",
-            image=files_icon,
-            command=lambda: self.add_widget("Files"),
-            fg_color="#FFFFFF",
-            hover_color="#E6E6E6",
-            width=50,
-            height=50,
-            corner_radius=6
-        )
-        files_button.pack()
-
-        voice_button = ctk.CTkButton(
-            voice_section, 
-            text="",
-            image=voice_icon,
-            command=lambda: self.add_widget("Voice"),
-            fg_color="#FFFFFF",
-            hover_color="#E6E6E6",
-            width=50,
-            height=50,
-            corner_radius=6
-        )
-        voice_button.pack()
-
-        # Add a content area for widgets
-        self.widget_area = ctk.CTkFrame(self.panel1)
-        self.widget_area.grid(row=2, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="nsew")
-        self.panel1.grid_rowconfigure(2, weight=1)
-
-        # Display the panel
-        self.panel1.grid(row=0, column=1, rowspan=3, sticky="nsew")
-
-    def add_widget(self, widget_type):
-        if not hasattr(self, 'widget_area'):
-            return
-
-        if widget_type == "TODO":
-            # Create a frame for the TODO widget
-            todo_frame = ctk.CTkFrame(self.widget_area, fg_color="#1E1E1E", corner_radius=8)
-            todo_frame.grid(row=len(self.widgets), column=0, pady=10, padx=20, sticky="nsew")
-            self.widget_area.grid_columnconfigure(0, weight=1)
-            
-            # Add a title and instructions
-            header_frame = ctk.CTkFrame(todo_frame, fg_color="transparent")
-            header_frame.pack(pady=(10,0), padx=10, fill="x")
-            
-            title = ctk.CTkLabel(
-                header_frame, 
-                text="TODO List", 
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color="#FFFFFF"
-            )
-            title.pack(side="left")
-            
-            help_text = ctk.CTkLabel(
-                header_frame,
-                text="✓ Click 'Done' column to mark complete\n✓ Right-click for more options",
-                font=ctk.CTkFont(size=12),
-                text_color="#888888"
-            )
-            help_text.pack(side="right")
-            
-            # Entry frame for adding tasks
-            entry_frame = ctk.CTkFrame(todo_frame, fg_color="transparent")
-            entry_frame.pack(pady=10, padx=10, fill="x")
-            
-            task_var = ctk.StringVar()
-            task_entry = ctk.CTkEntry(
-                entry_frame, 
-                textvariable=task_var,
-                placeholder_text="Enter a new task...",
-                height=35,
-                corner_radius=8
-            )
-            task_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-
-            def add_task(event=None):  # Allow Enter key to add task
-                task = task_var.get().strip()
-                if not task:
-                    self.show_error_notification("Cannot add empty task")
-                    logger.warning("Cannot add empty task")
-                    return
-                    
-                if self.db is None:
-                    error_msg = "Database connection is not available"
-                    self.show_error_notification(error_msg)
-                    logger.error(f"Cannot add task: {error_msg}")
-                    return
-                    
-                try:
-                    doc_ref = self.db.collection('todos').document()
-                    doc_ref.set({
-                        'task': task,
-                        'done': False,
-                        'completed_date': '',
-                        'created_date': firestore.SERVER_TIMESTAMP
-                    })
-                    logger.info(f"Task added successfully: {task}")
-                    load_tasks()
-                    task_entry.delete(0, "end")
-                except Exception as e:
-                    error_msg = f"Failed to add task: {str(e)}"
-                    self.show_error_notification(error_msg)
-                    logger.error(error_msg)
-
-            task_entry.bind('<Return>', add_task)  # Bind Enter key to add_task
-
-            add_task_btn = ctk.CTkButton(
-                entry_frame,
-                text="Add Task",
-                command=add_task,
-                height=35,
-                corner_radius=8,
-                fg_color="#4a7dfc",
-                hover_color="#5a8ffc"
-            )
-            add_task_btn.pack(side="right")
-
-            # Create tree frame
-            tree_frame = ctk.CTkFrame(todo_frame, fg_color="transparent")
-            tree_frame.pack(expand=True, fill="both", pady=10, padx=10)
-
-            # Configure style for the treeview
-            style = ttk.Style()
-            style.configure(
-                "Custom.Treeview",
-                background="#2B2B2B",
-                foreground="white",
-                fieldbackground="#2B2B2B",
-                borderwidth=0,
-                rowheight=30  # Increase row height for better visibility
-            )
-            style.configure(
-                "Custom.Treeview.Heading",
-                background="#1E1E1E",
-                foreground="white",
-                borderwidth=1
-            )
-            style.map("Custom.Treeview",
-                background=[('selected', '#3B3B3B')],
-                foreground=[('selected', 'white')]
-            )
-
-            # Create Treeview with custom style
-            columns = ("task", "done", "completed_date")
-            tree = ttk.Treeview(
-                tree_frame,
-                columns=columns,
-                show="headings",
-                style="Custom.Treeview"
-            )
-            
-            # Configure columns
-            tree.heading("task", text="Task", command=lambda: sort_tasks("task"))
-            tree.heading("done", text="Done", command=lambda: sort_tasks("done"))
-            tree.heading("completed_date", text="Completed Date", command=lambda: sort_tasks("completed_date"))
-            tree.column("task", width=300)
-            tree.column("done", width=70, anchor="center")
-            tree.column("completed_date", width=150, anchor="center")
-
-            # Add scrollbar
-            scrollbar = ctk.CTkScrollbar(tree_frame, command=tree.yview)
-            scrollbar.pack(side="right", fill="y")
-            tree.configure(yscrollcommand=scrollbar.set)
-            tree.pack(expand=True, fill="both")
-
-            # Enhanced context menu
-            context_menu = tk.Menu(tree, tearoff=0)
-            context_menu.add_command(label="✓ Mark as Done", command=lambda: toggle_done_menu())
-            context_menu.add_command(label="✎ Edit Task", command=lambda: edit_task())
-            context_menu.add_separator()
-            context_menu.add_command(label="🗑 Delete Task", command=lambda: delete_task())
-
-            def popup(event):
-                try:
-                    item = tree.identify_row(event.y)
-                    if item:
-                        tree.selection_set(item)
-                        context_menu.tk_popup(event.x_root, event.y_root)
-                finally:
-                    context_menu.grab_release()
-
-            tree.bind("<Button-3>", popup)
-
-            def toggle_done_menu():
-                selected_item = tree.selection()
-                if selected_item:
-                    toggle_done_status(selected_item[0])
-
-            def toggle_done_status(item_id):
-                try:
-                    if self.db is None:
-                        logging.error("Cannot update task: Database connection is not available")
-                        return
-                        
-                    task_info = self.db.collection('todos').document(item_id).get().to_dict()
-                    if task_info:
-                        new_status = not task_info.get('done', False)
-                        update_data = {'done': new_status}
-                        if new_status:
-                            update_data['completed_date'] = firestore.SERVER_TIMESTAMP
-                        else:
-                            update_data['completed_date'] = ''
-                        self.db.collection('todos').document(item_id).update(update_data)
-                        logging.info(f"Task status updated: {task_info.get('task', 'Unknown task')} -> {'Done' if new_status else 'Not Done'}")
-                        load_tasks()
-                except Exception as e:
-                    logging.error(f"Failed to update task status: {str(e)}")
-
-            def toggle_done(event):
-                column = tree.identify_column(event.x)
-                item_id = tree.identify_row(event.y)
-                if column == "#2" and item_id:  # Done column
-                    toggle_done_status(item_id)
-
-            tree.bind("<Button-1>", toggle_done)
-
-            def edit_task():
-                selected_item = tree.selection()
-                if not selected_item:
-                    return
+        def add_task(event=None):
+            task = task_var.get().strip()
+            if not task:
+                self.show_error_notification("Cannot add empty task")
+                logger.warning("Cannot add empty task")
+                return
                 
-                item_id = selected_item[0]
+            if self.db is None:
+                self.show_error_notification("Database connection is not available. Tasks will not be saved.")
+                logger.warning("Database connection is not available. Tasks will not be saved.")
+                # Add task to local storage or display only
+                tree.insert("", tk.END, values=(task, "No", ""), iid=str(len(tree.get_children())))
+                task_entry.delete(0, "end")
+                return
+                
+            try:
+                doc_ref = self.db.collection('todos').document()
+                doc_ref.set({
+                    'task': task,
+                    'done': False,
+                    'completed_date': '',
+                    'created_date': firestore.SERVER_TIMESTAMP
+                })
+                logger.info(f"Task added successfully: {task}")
+                load_tasks()
+                task_entry.delete(0, "end")
+            except Exception as e:
+                error_msg = f"Failed to add task: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
+
+        task_entry.bind('<Return>', add_task)
+
+        add_task_btn = ctk.CTkButton(
+            entry_frame,
+            text="Add Task",
+            command=add_task,
+            height=35,
+            corner_radius=0,
+            fg_color="#4a7dfc",
+            hover_color="#5a8ffc"
+        )
+        add_task_btn.pack(side="right")
+
+        def toggle_done_status(item_id):
+            try:
+                if self.db is None:
+                    # Handle local-only mode
+                    item_values = tree.item(item_id)['values']
+                    new_status = "Yes" if item_values[1] == "No" else "No"
+                    completed_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M') if new_status == "Yes" else ""
+                    tree.item(item_id, values=(item_values[0], new_status, completed_date))
+                    logger.info(f"Task status updated (local): {item_values[0]} -> {new_status}")
+                    return
+                    
+                task_info = self.db.collection('todos').document(item_id).get().to_dict()
+                if task_info:
+                    new_status = not task_info.get('done', False)
+                    update_data = {'done': new_status}
+                    if new_status:
+                        update_data['completed_date'] = firestore.SERVER_TIMESTAMP
+                    else:
+                        update_data['completed_date'] = ''
+                    self.db.collection('todos').document(item_id).update(update_data)
+                    logging.info(f"Task status updated: {task_info.get('task', 'Unknown task')} -> {'Done' if new_status else 'Not Done'}")
+                    load_tasks()
+            except Exception as e:
+                logging.error(f"Failed to update task status: {str(e)}")
+
+        def edit_task():
+            selected_item = tree.selection()
+            if not selected_item:
+                return
+            
+            item_id = selected_item[0]
+            
+            if self.db is None:
+                # Handle local-only mode
+                item_values = tree.item(item_id)['values']
+                current_task = item_values[0]
+            else:
                 task_info = self.db.collection('todos').document(item_id).get().to_dict()
                 if not task_info:
                     return
+                current_task = task_info['task']
 
-                edit_window = ctk.CTkToplevel(todo_frame)
-                edit_window.title("Edit Task")
-                edit_window.geometry("400x150")
-                edit_window.transient(todo_frame)
-                edit_window.grab_set()
+            edit_window = ctk.CTkToplevel(parent_frame)
+            edit_window.title("Edit Task")
+            edit_window.geometry("400x150")
+            edit_window.transient(parent_frame)
+            edit_window.grab_set()
 
-                edit_var = ctk.StringVar(value=task_info['task'])
-                edit_entry = ctk.CTkEntry(
-                    edit_window,
-                    textvariable=edit_var,
-                    width=300,
-                    height=35
-                )
-                edit_entry.pack(pady=(20, 10), padx=20)
+            edit_var = ctk.StringVar(value=current_task)
+            edit_entry = ctk.CTkEntry(
+                edit_window,
+                textvariable=edit_var,
+                width=300,
+                height=35,
+                corner_radius=0
+            )
+            edit_entry.pack(pady=(20, 10), padx=20)
 
-                def save_edit():
-                    new_task = edit_var.get().strip()
-                    if new_task:
+            def save_edit():
+                new_task = edit_var.get().strip()
+                if new_task:
+                    if self.db is None:
+                        # Handle local-only mode
+                        item_values = tree.item(item_id)['values']
+                        tree.item(item_id, values=(new_task, item_values[1], item_values[2]))
+                        logger.info(f"Task edited (local): {current_task} -> {new_task}")
+                    else:
                         self.db.collection('todos').document(item_id).update({
                             'task': new_task
                         })
                         load_tasks()
-                        edit_window.destroy()
+                    edit_window.destroy()
 
-                save_btn = ctk.CTkButton(
-                    edit_window,
-                    text="Save",
-                    command=save_edit,
-                    width=100
-                )
-                save_btn.pack(pady=10)
-                edit_entry.bind('<Return>', lambda e: save_edit())
-                edit_entry.focus()
+            save_btn = ctk.CTkButton(
+                edit_window,
+                text="Save",
+                command=save_edit,
+                width=100,
+                corner_radius=0
+            )
+            save_btn.pack(pady=10)
+            edit_entry.bind('<Return>', lambda e: save_edit())
+            edit_entry.focus()
 
-            def delete_task():
-                selected_item = tree.selection()
-                if selected_item:
-                    try:
-                        item_id = selected_item[0]
+        def delete_task():
+            selected_item = tree.selection()
+            if selected_item:
+                try:
+                    item_id = selected_item[0]
+                    
+                    if self.db is None:
+                        # Handle local-only mode
+                        item_values = tree.item(item_id)['values']
+                        task_name = item_values[0]
+                    else:
                         task_info = self.db.collection('todos').document(item_id).get().to_dict()
                         task_name = task_info.get('task', 'Unknown task') if task_info else 'Unknown task'
-                        
-                        response = messagebox.askyesno("Delete Task", "Are you sure you want to delete this task?")
-                        if response:
-                            if self.db is None:
-                                logging.error("Cannot delete task: Database connection is not available")
-                                return
-                                
-                            self.db.collection('todos').document(item_id).delete()
-                            logging.info(f"Task deleted: {task_name}")
+                    
+                    response = messagebox.askyesno("Delete Task", "Are you sure you want to delete this task?")
+                    if response:
+                        if self.db is None:
+                            # Handle local-only mode
                             tree.delete(item_id)
+                            logger.info(f"Task deleted (local): {task_name}")
+                        else:
+                            self.db.collection('todos').document(item_id).delete()
+                            logger.info(f"Task deleted: {task_name}")
                             load_tasks()
-                    except Exception as e:
-                        logging.error(f"Failed to delete task: {str(e)}")
+                except Exception as e:
+                    logging.error(f"Failed to delete task: {str(e)}")
 
-            sort_order = {"task": True, "done": True, "completed_date": True}  # True for ascending
+        def toggle_done(event):
+            column = tree.identify_column(event.x)
+            item_id = tree.identify_row(event.y)
+            if column == "#2" and item_id:  # Done column
+                toggle_done_status(item_id)
 
-            def sort_tasks(column):
-                sort_order[column] = not sort_order[column]  # Toggle sort order
+        tree.bind("<Button-1>", toggle_done)
+
+        # Context menu
+        context_menu = tk.Menu(tree, tearoff=0)
+        context_menu.add_command(label="✓ Mark as Done", command=lambda: toggle_done_status(tree.selection()[0]) if tree.selection() else None)
+        context_menu.add_command(label="✎ Edit Task", command=edit_task)
+        context_menu.add_separator()
+        context_menu.add_command(label="🗑 Delete Task", command=delete_task)
+
+        def popup(event):
+            try:
+                item = tree.identify_row(event.y)
+                if item:
+                    tree.selection_set(item)
+                    context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                context_menu.grab_release()
+
+        tree.bind("<Button-3>", popup)
+
+        sort_order = {"task": True, "done": True, "completed_date": True}  # True for ascending
+
+        def sort_tasks(column):
+            sort_order[column] = not sort_order[column]  # Toggle sort order
+            
+            if self.db is None:
+                # Handle local-only mode
+                tasks = []
+                for item in tree.get_children():
+                    values = tree.item(item)['values']
+                    tasks.append({
+                        'id': item,
+                        'task': values[0],
+                        'done': values[1] == "Yes",
+                        'completed_date': values[2]
+                    })
+            else:
+                docs = self.db.collection('todos').stream()
+                tasks = []
+                for doc in docs:
+                    data = doc.to_dict()
+                    data['id'] = doc.id
+                    tasks.append(data)
+            
+            reverse = not sort_order[column]
+            if column == "task":
+                tasks.sort(key=lambda x: x['task'].lower(), reverse=reverse)
+            elif column == "done":
+                tasks.sort(key=lambda x: x.get('done', False), reverse=reverse)
+            elif column == "completed_date":
+                tasks.sort(key=lambda x: x.get('completed_date', ''), reverse=reverse)
+            
+            for item in tree.get_children():
+                tree.delete(item)
+            
+            for task in tasks:
+                done = 'Yes' if task.get('done') else 'No'
+                completed_date = task.get('completed_date', '')
+                if completed_date and isinstance(completed_date, datetime.datetime):
+                    completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
+                tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
+
+        def load_tasks():
+            if self.db is None:
+                # In local-only mode, we don't need to reload tasks as they're already in the tree
+                logger.info("Skipping task reload in local-only mode")
+                return
+                
+            try:
+                for item in tree.get_children():
+                    tree.delete(item)
+                    
                 docs = self.db.collection('todos').stream()
                 tasks = []
                 for doc in docs:
@@ -820,16 +782,8 @@ class App(ctk.CTk):
                     data['id'] = doc.id
                     tasks.append(data)
                 
-                reverse = not sort_order[column]
-                if column == "task":
-                    tasks.sort(key=lambda x: x['task'].lower(), reverse=reverse)
-                elif column == "done":
-                    tasks.sort(key=lambda x: x.get('done', False), reverse=reverse)
-                elif column == "completed_date":
-                    tasks.sort(key=lambda x: x.get('completed_date', ''), reverse=reverse)
-                
-                for item in tree.get_children():
-                    tree.delete(item)
+                # Sort by created date by default
+                tasks.sort(key=lambda x: x.get('created_date', datetime.datetime.min), reverse=True)
                 
                 for task in tasks:
                     done = 'Yes' if task.get('done') else 'No'
@@ -837,53 +791,67 @@ class App(ctk.CTk):
                     if completed_date and isinstance(completed_date, datetime.datetime):
                         completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
                     tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
+                
+                logger.info(f"Tasks loaded successfully. Total tasks: {len(tasks)}")
+            except Exception as e:
+                error_msg = f"Failed to load tasks: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
 
-            def load_tasks():
-                if self.db is None:
-                    error_msg = "Database connection is not available"
-                    self.show_error_notification(error_msg)
-                    logger.error(f"Cannot load tasks: {error_msg}")
-                    return
-                    
-                try:
-                    for item in tree.get_children():
-                        tree.delete(item)
-                        
-                    docs = self.db.collection('todos').stream()
-                    tasks = []
-                    for doc in docs:
-                        data = doc.to_dict()
-                        data['id'] = doc.id
-                        tasks.append(data)
-                    
-                    # Sort by created date by default
-                    tasks.sort(key=lambda x: x.get('created_date', datetime.datetime.min), reverse=True)
-                    
-                    for task in tasks:
-                        done = 'Yes' if task.get('done') else 'No'
-                        completed_date = task.get('completed_date', '')
-                        if completed_date and isinstance(completed_date, datetime.datetime):
-                            completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
-                        tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
-                    
-                    logger.info(f"Tasks loaded successfully. Total tasks: {len(tasks)}")
-                except Exception as e:
-                    error_msg = f"Failed to load tasks: {str(e)}"
-                    self.show_error_notification(error_msg)
-                    logger.error(error_msg)
+        # Initial load of tasks
+        load_tasks()
 
-            # Initial load of tasks
-            load_tasks()
-            
-            widget = todo_frame
-            
-        elif widget_type == "Voice":
-            widget = ctk.CTkLabel(self.widget_area, text="Voice Recorder Widget", fg_color="#1E1E1E", corner_radius=8)
-            widget.grid(row=len(self.widgets), column=0, pady=10, padx=20, sticky="ew")
+    def clear_terminal(self):
+        """Clear the terminal content"""
+        self.terminal.configure(state="normal")  # Enable editing
+        self.terminal.delete("0.0", "end")  # Clear all content
         
-        if widget:
-            self.widgets.append({"type": widget_type, "widget": widget})
-            self.save_widgets()
+        # Add welcome message
+        welcome_msg = "Welcome to Minux Terminal\n"
+        welcome_msg += "=" * 50 + "\n"
+        self.terminal.insert("0.0", welcome_msg)
+        
+        self.terminal.see("end")  # Scroll to the end
+        self.terminal.configure(state="disabled")  # Disable editing again
+
+    def toggle_terminal(self):
+        """Toggle the terminal panel visibility"""
+        if self.terminal_visible:
+            self.terminal_frame.grid_remove()
+            self.terminal_visible = False
+        else:
+            self.terminal_frame.grid(row=1, column=2, sticky="ew")
+            self.terminal_visible = True
+
+    def setup_status_bar(self):
+        """Setup the status bar"""
+        # Add status information
+        status_label = ctk.CTkLabel(
+            self.status_bar,
+            text="Ready",
+            text_color="white",
+            font=("Segoe UI", 10)
+        )
+        status_label.pack(side="left", padx=5)
+        
+        # Add time display
+        self.status_bar_label = ctk.CTkLabel(
+            self.status_bar,
+            text="",
+            text_color="white",
+            font=("Segoe UI", 10)
+        )
+        self.status_bar_label.pack(side="right", padx=5)
+
+    def add_widget_to_tab(self, tab, widget_type):
+        """Add a widget to a specific tab"""
+        if widget_type == "TODO":
+            # Create TODO widget frame
+            todo_frame = ctk.CTkFrame(tab, fg_color="#1E1E1E", corner_radius=0)
+            todo_frame.pack(expand=True, fill="both", padx=20, pady=20)
+            
+            # Add TODO widget content (reusing existing TODO implementation)
+            self.setup_todo_widget(todo_frame)
 
     def save_widgets(self):
         with open('widgets.json', 'w') as f:
@@ -938,14 +906,14 @@ class App(ctk.CTk):
         confirmation_label.pack(pady=20, padx=20)
 
         # Frame for buttons with padding
-        button_frame = ctk.CTkFrame(confirmation_dialog)
+        button_frame = ctk.CTkFrame(confirmation_dialog, corner_radius=0)
         button_frame.pack(fill='x', expand=True, pady=10)
 
         # Stylish buttons with custom colors and padding
         yes_button = ctk.CTkButton(button_frame, text="Yes", command=self.quit,
-                                    fg_color="green", hover_color="light green")
+                                    fg_color="green", hover_color="light green", corner_radius=0)
         no_button = ctk.CTkButton(button_frame, text="No", command=confirmation_dialog.destroy,
-                                fg_color="red", hover_color="light coral")
+                                fg_color="red", hover_color="light coral", corner_radius=0)
         
         yes_button.pack(side='left', fill='x', expand=True, padx=10)
         no_button.pack(side='right', fill='x', expand=True, padx=10)
@@ -953,7 +921,7 @@ class App(ctk.CTk):
         
     def show_settings(self):
         if not hasattr(self, 'settings_frame'):
-            self.settings_frame = ctk.CTkFrame(self, width=400, height=300, corner_radius=10)
+            self.settings_frame = ctk.CTkFrame(self, width=400, height=300, corner_radius=0)
             self.settings_frame.grid(row=0, column=1, rowspan=3, sticky="nsew")
             
             appearance_mode_label = ctk.CTkLabel(self.settings_frame, text="Appearance Mode:", anchor="w")
@@ -1030,7 +998,7 @@ class App(ctk.CTk):
         label.grid(row=0, column=0, pady=(10, 10), sticky="nsew")
 
         # Chat history area with a modern look
-        self.chat_history = ctk.CTkTextbox(self.panel1, height=15, corner_radius=10, fg_color="#2e2e2e", text_color="white")
+        self.chat_history = ctk.CTkTextbox(self.panel1, height=15, corner_radius=0, fg_color="#2e2e2e", text_color="white")
         self.chat_history.grid(row=1, column=0, padx=20, pady=(10, 10), sticky="nsew")
 
         # Frame for the user input and send button
@@ -1039,15 +1007,15 @@ class App(ctk.CTk):
         input_frame.grid_columnconfigure(0, weight=1)
 
         # User input entry
-        self.user_input = ctk.CTkEntry(input_frame, placeholder_text="Ask me anything...", corner_radius=10)
+        self.user_input = ctk.CTkEntry(input_frame, placeholder_text="Ask me anything...", corner_radius=0)
         self.user_input.grid(row=0, column=0, padx=(0, 10), pady=(0, 10), sticky="nsew")
 
         # Send button with a modern look
-        send_button = ctk.CTkButton(input_frame, text="Send", command=self.send_message, corner_radius=10, fg_color="#4a7dfc", hover_color="#5a8ffc")
+        send_button = ctk.CTkButton(input_frame, text="Send", command=self.send_message, corner_radius=0, fg_color="#4a7dfc", hover_color="#5a8ffc")
         send_button.grid(row=0, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
 
 
-        
+
     def send_message(self):
         user_message = self.user_input.get()
         if user_message.strip() != "":
@@ -1072,35 +1040,16 @@ class App(ctk.CTk):
         self.clear_panels()
 
         # Create a main frame to hold both the file list and details panel
-        main_frame = ctk.CTkFrame(self.panel2)
+        main_frame = ctk.CTkFrame(self.panel2, corner_radius=0)
         main_frame.grid(row=0, column=0, pady=10, padx=10, sticky="nsew")
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(1, weight=3)
-        main_frame.grid_rowconfigure(0, weight=1)
-
+        
         # Create a scrollable frame for the file list
-        file_list_frame = ctk.CTkFrame(main_frame)
+        file_list_frame = ctk.CTkFrame(main_frame, corner_radius=0)
         file_list_frame.grid(row=0, column=0, sticky="nsw", padx=10, pady=10)
-        file_list_frame.grid_rowconfigure(0, weight=1)
-        file_list_frame.grid_columnconfigure(0, weight=1)
-
-        # Scrollable Canvas
-        canvas = ctk.CTkCanvas(file_list_frame, bg="white")
-        canvas.grid(row=0, column=0, sticky="nsew")
-
-        scrollbar = ctk.CTkScrollbar(file_list_frame, orientation="vertical", command=canvas.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-
-        file_list_inner_frame = ctk.CTkFrame(canvas)
-        canvas.create_window((0, 0), window=file_list_inner_frame, anchor="nw")
-
-        file_list_inner_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
+        
         # Details Panel
-        self.details_panel = ctk.CTkFrame(main_frame, width=300)
+        self.details_panel = ctk.CTkFrame(main_frame, width=300, corner_radius=0)
         self.details_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.details_panel.grid_columnconfigure(0, weight=1)
-        self.details_panel.grid_rowconfigure(0, weight=1)
 
         scores_path = 'media/scores'
         if os.path.exists(scores_path):
@@ -1108,7 +1057,7 @@ class App(ctk.CTk):
             for file_name in os.listdir(scores_path):
                 file_path = os.path.join(scores_path, file_name)
                 if os.path.isfile(file_path):
-                    file_button = ctk.CTkButton(file_list_inner_frame, text=file_name, anchor="w", font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
+                    file_button = ctk.CTkButton(file_list_frame, text=file_name, anchor="w", font=ctk.CTkFont(size=14), command=lambda f=file_path: self.show_file_details(f))
                     file_button.grid(row=row, column=0, pady=(5, 5), padx=(5, 5), sticky="ew")
                     row += 1
         
@@ -1170,7 +1119,7 @@ class App(ctk.CTk):
         self.panel3.grid_remove()
         
         # Ensure status bar remains visible
-        self.status_bar_frame.grid(row=4, column=0, columnspan=4, sticky="nsew")
+        self.status_bar_frame.grid(row=2, column=0, columnspan=4, sticky="nsew")
 
     def change_appearance_mode_event(self, new_appearance_mode: str):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -1210,7 +1159,7 @@ class App(ctk.CTk):
             self.toggle_terminal()
         
         # Ensure terminal is visible
-        self.terminal_frame.grid(row=3, column=0, columnspan=4, sticky="nsew")
+        self.terminal_frame.grid(row=1, column=2, sticky="ew")
         self.terminal_visible = True
         
         # Log the error message to ensure it appears in the terminal
@@ -1219,9 +1168,272 @@ class App(ctk.CTk):
         # Hide notification
         self.hide_notification()
 
+    def setup_activity_bar(self):
+        """Setup the VSCode-like activity bar with icons"""
+        # Load and create activity bar buttons
+        icon_size = (20, 20)
+        button_configs = [
+            ("files.png", "Explorer", self.toggle_explorer),
+            ("search.png", "Search", self.toggle_search),
+            ("git.png", "Source Control", self.toggle_source_control),
+            ("debug.png", "Run and Debug", self.toggle_debug),
+            ("extensions.png", "Extensions", self.toggle_extensions)
+        ]
+        
+        for i, (icon_name, tooltip, command) in enumerate(button_configs):
+            try:
+                icon = ctk.CTkImage(
+                    Image.open(f"./media/icons/{icon_name}").resize(icon_size),
+                    size=icon_size
+                )
+                btn = ctk.CTkButton(
+                    self.activity_bar,
+                    image=icon,
+                    text="",
+                    width=48,
+                    height=48,
+                    fg_color="transparent",
+                    hover_color="#404040",
+                    command=command,
+                    corner_radius=0
+                )
+                btn.grid(row=i, column=0, pady=(5, 0))
+                
+                # Create tooltip (you'll need to implement this)
+                # self.create_tooltip(btn, tooltip)
+                
+            except Exception as e:
+                logger.error(f"Failed to load icon {icon_name}: {str(e)}")
+
+    def toggle_explorer(self):
+        """Toggle the file explorer sidebar"""
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_explorer_sidebar()
+
+    def setup_explorer_sidebar(self):
+        """Setup the explorer sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="EXPLORER",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+    def toggle_search(self):
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_search_sidebar()
+
+    def toggle_source_control(self):
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_source_control_sidebar()
+
+    def toggle_debug(self):
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_debug_sidebar()
+
+    def toggle_extensions(self):
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_extensions_sidebar()
+
+    def create_tab(self, title, content=None):
+        """Create a new tab in the tab bar"""
+        tab_frame = ctk.CTkFrame(
+            self.tab_bar,
+            fg_color=self.vscode_colors["tab_active"],
+            height=35
+        )
+        tab_frame.pack(side="left", padx=1, fill="y")
+        
+        tab_label = ctk.CTkLabel(
+            tab_frame,
+            text=title,
+            font=ctk.CTkFont(size=11),
+            text_color="#CCCCCC"
+        )
+        tab_label.pack(side="left", padx=10, pady=5)
+        
+        close_btn = ctk.CTkButton(
+            tab_frame,
+            text="×",
+            width=20,
+            height=20,
+            fg_color="transparent",
+            hover_color="#404040",
+            command=lambda: self.close_tab(tab_frame)
+        )
+        close_btn.pack(side="right", padx=5)
+        
+        return tab_frame
+
+    def close_tab(self, tab_frame):
+        """Close a tab"""
+        tab_frame.destroy()
+
+    def show_add_widget_dialog(self):
+        """Show the dialog for adding new widgets"""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Add Widget")
+        dialog.geometry("600x400")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Create a title for the widget section
+        title_label = ctk.CTkLabel(
+            dialog,
+            text="Available Widgets",
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        title_label.pack(pady=(20, 10))
+
+        # Create a scrollable frame for widgets
+        scroll_frame = ctk.CTkScrollableFrame(dialog, corner_radius=0)
+        scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Widget categories
+        categories = {
+            "Productivity": [
+                ("TODO List", "todo", "Manage your tasks and to-dos"),
+                ("Notes", "notes", "Take and organize notes"),
+                ("Calendar", "calendar", "View and manage your schedule")
+            ],
+            "Tools": [
+                ("Clock", Clock, "Display current time"),
+                ("Timer", Timer, "Set countdown timers"),
+                ("StopWatch", StopWatch, "Track elapsed time"),
+                ("Alarm", Alarm, "Set alarms")
+            ],
+            "Fun": [
+                ("Doge", Doge, "A fun Doge widget")
+            ]
+        }
+
+        for category, widgets in categories.items():
+            # Category label
+            category_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent", corner_radius=0)
+            category_frame.pack(fill="x", pady=(10, 5))
+            
+            category_label = ctk.CTkLabel(
+                category_frame,
+                text=category,
+                font=ctk.CTkFont(size=16, weight="bold")
+            )
+            category_label.pack(anchor="w")
+
+            # Widget buttons
+            for widget_name, widget_class, description in widgets:
+                widget_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent", corner_radius=0)
+                widget_frame.pack(fill="x", pady=5)
+                
+                btn = ctk.CTkButton(
+                    widget_frame,
+                    text=widget_name,
+                    command=lambda w=widget_class: self.add_widget_from_dialog(w, dialog),
+                    width=150,
+                    height=32,
+                    corner_radius=0
+                )
+                btn.pack(side="left", padx=(20, 10))
+                
+                desc_label = ctk.CTkLabel(
+                    widget_frame,
+                    text=description,
+                    font=ctk.CTkFont(size=12),
+                    text_color="#888888"
+                )
+                desc_label.pack(side="left")
+
+    def add_widget_from_dialog(self, widget_class, dialog):
+        """Add a widget from the dialog and close it"""
+        if isinstance(widget_class, str):
+            self.add_widget(widget_class)
+        else:
+            self.add_widget_instance(widget_class)
+        dialog.destroy()
+
+    def setup_search_sidebar(self):
+        """Setup the search sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="SEARCH",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+    def setup_source_control_sidebar(self):
+        """Setup the source control sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="SOURCE CONTROL",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+    def setup_debug_sidebar(self):
+        """Setup the debug sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="RUN AND DEBUG",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+    def setup_extensions_sidebar(self):
+        """Setup the extensions sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="EXTENSIONS",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
 if __name__ == "__main__":
     try:
-        app = App()
+        app = MinuxApp()
         app.mainloop()
     except Exception as e:
         print(f"An exception occurred: {e}")
