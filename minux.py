@@ -18,6 +18,10 @@ from tkinter import ttk, messagebox
 import firebase_admin
 from firebase_admin import credentials, firestore
 import queue
+from ui.explorer import FileExplorer
+from ui.tabs import TabView
+from ui.file_viewer import FileViewer
+from ui.widgets.todo import TodoWidget
 
 
 ctk.set_appearance_mode("Light")  
@@ -169,37 +173,36 @@ class MinuxApp(ctk.CTk):
         self.geometry("1200x800")
         
         # Configure grid weights
-        self.grid_columnconfigure(2, weight=1)  # Main content area expands
-        self.grid_rowconfigure(0, weight=1)     # Content area expands vertically
+        self.grid_columnconfigure(2, weight=1)  # Make tab view expand
+        self.grid_rowconfigure(0, weight=1)
         
-        # Create the activity bar (left-most panel)
+        # Create activity bar
         self.activity_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['activity_bar'], width=48, corner_radius=0)
-        self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self.activity_bar.grid(row=0, column=0, sticky="ns")
         self.activity_bar.grid_propagate(False)
         
-        # Create the sidebar
-        self.sidebar = ctk.CTkFrame(self, fg_color=self.vscode_colors['sidebar'], width=250, corner_radius=0)
-        self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew")
-        self.sidebar.grid_propagate(False)
+        # Create sidebar
+        self.sidebar = ctk.CTkFrame(self, fg_color=self.vscode_colors['sidebar'], width=240, corner_radius=0)
+        self.sidebar.grid(row=0, column=1, sticky="nsew")
+        self.sidebar.grid_remove()  # Hidden by default
         
-        # Create main content area with tabs
-        self.content_area = ctk.CTkTabview(self, fg_color=self.vscode_colors['editor_bg'], corner_radius=0)
-        self.content_area.grid(row=0, column=2, sticky="nsew")
+        # Create tab view
+        self.tab_view = TabView(self)
+        self.tab_view.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
         
         # Create terminal panel
         self.terminal_frame = ctk.CTkFrame(self, fg_color=self.vscode_colors['panel_bg'], height=200, corner_radius=0)
-        self.terminal_frame.grid(row=1, column=2, sticky="ew")
+        self.terminal_frame.grid(row=1, column=0, columnspan=4, sticky="ew")
         self.terminal_frame.grid_propagate(False)
         
         # Create status bar
         self.status_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['status_bar'], height=25, corner_radius=0)
-        self.status_bar.grid(row=2, column=0, columnspan=3, sticky="ew")
+        self.status_bar.grid(row=2, column=0, columnspan=4, sticky="ew")
         self.status_bar.grid_propagate(False)
         
         # Setup UI components
         self.setup_activity_bar()
         self.setup_sidebar()
-        self.setup_content_area()
         self.setup_terminal()
         self.setup_status_bar()
         
@@ -244,122 +247,6 @@ class MinuxApp(ctk.CTk):
     def setup_sidebar(self):
         # This will be populated based on the active activity bar button
         pass
-
-    def setup_content_area(self):
-        """Setup the content area with default tabs and widgets"""
-        # Add default tabs
-        welcome_tab = self.content_area.add("Welcome")
-        todo_tab = self.content_area.add("TODO List")
-        notes_tab = self.content_area.add("Notes")
-        
-        # Configure tab colors
-        self.content_area._segmented_button.configure(
-            fg_color=self.vscode_colors['tab_inactive'],
-            selected_color=self.vscode_colors['tab_active'],
-            selected_hover_color=self.vscode_colors['tab_hover']
-        )
-        
-        # Add widgets to appropriate tabs
-        self.add_widget_to_tab(todo_tab, "TODO")
-        
-        # Welcome content
-        welcome_label = ctk.CTkLabel(
-            welcome_tab, 
-            text="Welcome to Minux",
-            font=ctk.CTkFont(size=24, weight="bold")
-        )
-        welcome_label.pack(pady=20)
-        
-        # Add widget toolbar
-        self.create_widget_toolbar(welcome_tab)
-
-    def create_widget_toolbar(self, parent):
-        """Create a toolbar for adding widgets"""
-        toolbar = ctk.CTkFrame(parent, corner_radius=0)
-        toolbar.pack(fill="x", padx=20, pady=10)
-        
-        # Widget buttons
-        widgets = [
-            ("Clock", Clock),
-            ("Timer", Timer),
-            ("StopWatch", StopWatch),
-            ("Alarm", Alarm),
-            ("Doge", Doge)
-        ]
-        
-        for widget_name, widget_class in widgets:
-            btn = ctk.CTkButton(
-                toolbar,
-                text=f"Add {widget_name}",
-                command=lambda w=widget_class: self.add_widget_instance(w),
-                corner_radius=0
-            )
-            btn.pack(side="left", padx=5)
-
-    def add_widget_instance(self, widget_class):
-        """Add a widget instance to the current tab"""
-        current_tab = self.content_area.get()
-        if current_tab:
-            tab_frame = self.content_area._tab_dict[current_tab]
-            # Initialize widget with font_size parameter
-            widget = widget_class(tab_frame, font_size=12)  # You can adjust the font size as needed
-            widget.pack(pady=10)
-            if not hasattr(self, 'widgets'):
-                self.widgets = []
-            self.widgets.append({"type": widget_class.__name__, "widget": widget})
-            self.save_widgets()
-
-    def create_menu(self):
-        """Create the main menu bar"""
-        menubar = tk.Menu(self)
-        self.configure(menu=menubar)
-
-        # File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.quit_app)
-
-        # View menu
-        view_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
-        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
-
-        # Themes menu
-        themes_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Themes", menu=themes_menu)
-        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
-        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
-        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
-        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
-        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
-
-        # Widgets menu
-        widgets_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Widgets", menu=widgets_menu)
-        widgets_menu.add_command(label="Clock", command=lambda: self.add_widget_instance(Clock))
-        widgets_menu.add_command(label="Timer", command=lambda: self.add_widget_instance(Timer))
-        widgets_menu.add_command(label="StopWatch", command=lambda: self.add_widget_instance(StopWatch))
-        widgets_menu.add_command(label="Alarm", command=lambda: self.add_widget_instance(Alarm))
-        widgets_menu.add_command(label="Doge", command=lambda: self.add_widget_instance(Doge))
-
-    def change_theme(self, theme_name):
-        """Change the application's color theme"""
-        if theme_name == "blue":
-            ctk.set_default_color_theme("blue")
-        elif theme_name == "green":
-            ctk.set_default_color_theme("green")
-        elif theme_name == "dark":
-            ctk.set_appearance_mode("Dark")
-        elif theme_name == "light":
-            ctk.set_appearance_mode("Light")
-        elif theme_name == "system":
-            ctk.set_appearance_mode("System")
-        
-        # Refresh the UI to apply the new theme
-        self.update()
 
     def setup_terminal(self):
         """Create and setup the terminal panel"""
@@ -820,7 +707,7 @@ class MinuxApp(ctk.CTk):
             self.terminal_frame.grid_remove()
             self.terminal_visible = False
         else:
-            self.terminal_frame.grid(row=1, column=2, sticky="ew")
+            self.terminal_frame.grid(row=1, column=0, columnspan=4, sticky="ew")
             self.terminal_visible = True
 
     def setup_status_bar(self):
@@ -1159,7 +1046,7 @@ class MinuxApp(ctk.CTk):
             self.toggle_terminal()
         
         # Ensure terminal is visible
-        self.terminal_frame.grid(row=1, column=2, sticky="ew")
+        self.terminal_frame.grid(row=1, column=0, columnspan=4, sticky="ew")
         self.terminal_visible = True
         
         # Log the error message to ensure it appears in the terminal
@@ -1227,6 +1114,10 @@ class MinuxApp(ctk.CTk):
             text_color="#6F6F6F"
         )
         header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Create file explorer in sidebar
+        self.explorer = FileExplorer(self.sidebar, self.on_file_select)
+        self.explorer.pack(fill="both", expand=True, padx=5, pady=5)
 
     def toggle_search(self):
         if self.sidebar.winfo_viewable():
@@ -1430,6 +1321,72 @@ class MinuxApp(ctk.CTk):
             text_color="#6F6F6F"
         )
         header.pack(pady=(10, 5), padx=10, anchor="w")
+
+    def on_file_select(self, file_path):
+        # Check if file is already open in a tab
+        if file_path in self.tab_view.tabs:
+            self.tab_view.select_tab(file_path)
+            return
+        
+        # Create new file viewer
+        viewer = FileViewer(self.tab_view)
+        viewer.load_file(file_path)
+        
+        # Add new tab
+        self.tab_view.add_tab(file_path, viewer)
+
+    def create_menu(self):
+        """Create the main menu bar"""
+        menubar = tk.Menu(self)
+        self.configure(menu=menubar)
+
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.quit_app)
+
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
+        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
+
+        # TODO menu
+        todo_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="TODO", menu=todo_menu)
+        todo_menu.add_command(label="See TODO List", command=self.show_todo_list)
+
+        # Themes menu
+        themes_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Themes", menu=themes_menu)
+        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
+        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
+        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
+        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
+        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
+
+    def show_todo_list(self):
+        """Open the TODO widget in a new tab"""
+        todo_widget = TodoWidget(self.tab_view)
+        self.tab_view.add_tab("TODO", todo_widget)
+
+    def change_theme(self, theme_name):
+        """Change the application's color theme"""
+        if theme_name == "blue":
+            ctk.set_default_color_theme("blue")
+        elif theme_name == "green":
+            ctk.set_default_color_theme("green")
+        elif theme_name == "dark":
+            ctk.set_appearance_mode("Dark")
+        elif theme_name == "light":
+            ctk.set_appearance_mode("Light")
+        elif theme_name == "system":
+            ctk.set_appearance_mode("System")
+        
+        # Refresh the UI to apply the new theme
+        self.update()
 
 if __name__ == "__main__":
     try:
