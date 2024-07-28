@@ -24,7 +24,8 @@ from ui.file_viewer import FileViewer
 from ui.widgets.todo import TodoWidget
 
 
-ctk.set_appearance_mode("Light")  
+# Set dark mode as default
+ctk.set_appearance_mode("Dark")  
 ctk.set_default_color_theme("blue")  
 
 # Configure logging to write to a queue
@@ -193,7 +194,9 @@ class MinuxApp(ctk.CTk):
         # Create terminal panel
         self.terminal_frame = ctk.CTkFrame(self, fg_color=self.vscode_colors['panel_bg'], height=200, corner_radius=0)
         self.terminal_frame.grid(row=1, column=0, columnspan=4, sticky="ew")
+        self.terminal_frame.grid_remove()  # Hide terminal by default
         self.terminal_frame.grid_propagate(False)
+        self.terminal_visible = False  # Initialize terminal visibility state
         
         # Create status bar
         self.status_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['status_bar'], height=25, corner_radius=0)
@@ -343,7 +346,6 @@ class MinuxApp(ctk.CTk):
             respect_handler_level=True
         )
         self.log_listener.start()
-        self.terminal_visible = True
 
     def setup_todo_widget(self, parent_frame):
         """Setup the TODO widget content"""
