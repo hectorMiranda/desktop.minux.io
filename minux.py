@@ -99,29 +99,7 @@ class MinuxApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        # Initialize db attribute
-        self.db = None
-        
-        # Try to initialize Firebase
-        try:
-            if not firebase_admin._apps:
-                if not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
-                    logger.warning(f"Service account key file not found at: {SERVICE_ACCOUNT_KEY_PATH}")
-                else:
-                    try:
-                        cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
-                        firebase_admin.initialize_app(cred)
-                        self.db = firestore.client()
-                        logger.info("Firebase initialized successfully")
-                    except Exception as e:
-                        logger.warning(f"Failed to initialize Firebase: {str(e)}")
-            else:
-                self.db = firestore.client()
-                logger.info("Using existing Firebase connection")
-        except Exception as e:
-            logger.warning(f"Firebase initialization skipped: {str(e)}")
-            
-        # Create notification frame
+        # Create notification frame first
         self.notification_frame = ctk.CTkFrame(self, fg_color="#FF4444", height=30, corner_radius=0)
         self.notification_frame.grid(row=3, column=0, columnspan=3, sticky="ew")
         self.notification_frame.grid_remove()  # Hidden by default
@@ -156,6 +134,35 @@ class MinuxApp(ctk.CTk):
             font=ctk.CTkFont(size=16)
         )
         close_btn.pack(side="right", padx=5)
+        
+        # Initialize db attribute
+        self.db = None
+        self.offline_mode = False
+        
+        # Try to initialize Firebase
+        try:
+            if not firebase_admin._apps:
+                if not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
+                    logger.warning("Service account key file not found. Running in offline mode.")
+                    self.offline_mode = True
+                else:
+                    try:
+                        cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
+                        firebase_admin.initialize_app(cred)
+                        self.db = firestore.client()
+                        logger.info("Firebase initialized successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to initialize Firebase. Running in offline mode. Error: {str(e)}")
+                        self.offline_mode = True
+            else:
+                self.db = firestore.client()
+                logger.info("Using existing Firebase connection")
+        except Exception as e:
+            logger.warning(f"Firebase initialization skipped. Running in offline mode. Error: {str(e)}")
+            self.offline_mode = True
+            
+        if self.offline_mode:
+            self.show_error_notification("Running in offline mode. Some features may be limited.")
             
         # VSCode-like colors
         self.vscode_colors = {
@@ -199,9 +206,12 @@ class MinuxApp(ctk.CTk):
         self.terminal_visible = False  # Initialize terminal visibility state
         
         # Create status bar
-        self.status_bar = ctk.CTkFrame(self, fg_color=self.vscode_colors['status_bar'], height=25, corner_radius=0)
-        self.status_bar.grid(row=2, column=0, columnspan=4, sticky="ew")
-        self.status_bar.grid_propagate(False)
+        self.status_bar = StatusBar(self)
+        self.status_bar.grid(row=4, column=0, columnspan=4, sticky="ew")
+        
+        # Initialize warning/error counts
+        self.warning_count = 0
+        self.error_count = 0
         
         # Setup UI components
         self.setup_activity_bar()
@@ -214,40 +224,152 @@ class MinuxApp(ctk.CTk):
 
     def setup_activity_bar(self):
         try:
-            # Load icons
-            explorer_icon = ctk.CTkImage(Image.open("media/icons/files.png"), size=(24, 24))
-            search_icon = ctk.CTkImage(Image.open("media/icons/search.png"), size=(24, 24))
-            git_icon = ctk.CTkImage(Image.open("media/icons/git.png"), size=(24, 24))
-            debug_icon = ctk.CTkImage(Image.open("media/icons/debug.png"), size=(24, 24))
-            extensions_icon = ctk.CTkImage(Image.open("media/icons/extensions.png"), size=(24, 24))
-            music_icon = ctk.CTkImage(Image.open("media/icons/notes.png"), size=(24, 24))
+            icons_path = "media/icons"
+            # Default icons using Unicode symbols
+            default_icons = {
+                "Explorer": "📁",
+                "Search": "🔍",
+                "Source Control": "📝",
+                "Run and Debug": "🐞",
+                "TODO List": "✓",
+                "Music Theory": "♪",
+                "Extensions": "🧩"
+            }
             
-            # Create buttons
-            buttons = [
-                ("Explorer", explorer_icon),
-                ("Search", search_icon),
-                ("Source Control", git_icon),
-                ("Debug", debug_icon),
-                ("Extensions", extensions_icon),
-                ("Music Theory", music_icon)
-            ]
-            
-            for i, (name, icon) in enumerate(buttons):
+            buttons = []
+            for name, symbol in default_icons.items():
+                icon = None
+                icon_file = None
+                
+                # Try to load the corresponding icon file
+                if name == "Explorer":
+                    icon_file = "files.png"
+                elif name == "Search":
+                    icon_file = "search.png"
+                elif name == "Source Control":
+                    icon_file = "git.png"
+                elif name == "Run and Debug":
+                    icon_file = "debug.png"
+                elif name == "TODO List":
+                    icon_file = "todo.png"
+                elif name == "Music Theory":
+                    icon_file = "music_note.png"
+                elif name == "Extensions":
+                    icon_file = "extensions.png"
+                
+                # Try to load the icon file if it exists
+                if icon_file:
+                    try:
+                        icon_path = os.path.join(icons_path, icon_file)
+                        if os.path.exists(icon_path):
+                            icon = ctk.CTkImage(Image.open(icon_path), size=(24, 24))
+                    except Exception as e:
+                        logger.debug(f"Could not load icon {icon_file}: {str(e)}")
+                
+                # Create button with either icon or Unicode symbol
                 btn = ctk.CTkButton(
                     self.activity_bar,
-                    text="",
+                    text="" if icon else symbol,
                     image=icon,
                     width=48,
                     height=48,
                     fg_color="transparent",
                     hover_color="#505050",
-                    command=lambda w=name: self.toggle_music_theory() if w == "Music Theory" else self.toggle_explorer(),
-                    corner_radius=0
+                    command=lambda w=name: self.handle_activity_button(w),
+                    corner_radius=0,
+                    font=ctk.CTkFont(size=20) if not icon else None
                 )
+                buttons.append((btn, name))
+            
+            # Add buttons to the activity bar
+            for i, (btn, _) in enumerate(buttons):
                 btn.grid(row=i, column=0, pady=(5, 0))
                 
         except Exception as e:
-            print(f"Error loading activity bar icons: {e}")
+            logger.error(f"Error setting up activity bar: {str(e)}")
+            # Create minimal activity bar with text buttons if icons fail
+            for i, name in enumerate(["Explorer", "Search", "Source Control", "Run and Debug", 
+                                    "TODO List", "Music Theory", "Extensions"]):
+                btn = ctk.CTkButton(
+                    self.activity_bar,
+                    text=name[0],  # Just use first letter
+                    width=48,
+                    height=48,
+                    fg_color="transparent",
+                    hover_color="#505050",
+                    command=lambda w=name: self.handle_activity_button(w),
+                    corner_radius=0
+                )
+                btn.grid(row=i, column=0, pady=(5, 0))
+
+    def handle_activity_button(self, button_name):
+        """Handle clicks on activity bar buttons"""
+        if button_name == "Explorer":
+            self.toggle_explorer()
+        elif button_name == "Search":
+            self.toggle_search()
+        elif button_name == "Source Control":
+            self.toggle_source_control()
+        elif button_name == "Run and Debug":
+            self.toggle_debug()
+        elif button_name == "Extensions":
+            self.toggle_extensions()
+        elif button_name == "Music Theory":
+            self.toggle_music_theory()
+        elif button_name == "TODO List":
+            self.toggle_todo()
+
+    def toggle_todo(self):
+        """Toggle the TODO sidebar and content"""
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_todo_sidebar()
+            self.show_todo_content()
+
+    def setup_todo_sidebar(self):
+        """Setup the TODO sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="TODO",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Create a frame for the TODO categories
+        categories_frame = ctk.CTkScrollableFrame(self.sidebar, corner_radius=0)
+        categories_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Add TODO categories
+        categories = ["All Tasks", "Today", "Upcoming", "Completed"]
+        for category in categories:
+            btn = ctk.CTkButton(
+                categories_frame,
+                text=category,
+                fg_color="transparent",
+                hover_color="#404040",
+                anchor="w",
+                command=lambda c=category: self.show_todo_category(c),
+                corner_radius=0
+            )
+            btn.pack(fill="x", pady=2)
+
+    def show_todo_content(self):
+        """Show the main TODO content area"""
+        todo_widget = TodoWidget(self.tab_view)
+        self.tab_view.add_tab("TODO", todo_widget)
+
+    def show_todo_category(self, category):
+        """Show tasks for the selected category"""
+        # This would be implemented to filter tasks based on the category
+        pass
 
     def setup_sidebar(self):
         # This will be populated based on the active activity bar button
@@ -1093,12 +1215,62 @@ class MinuxApp(ctk.CTk):
             self.sidebar.grid()
             self.setup_search_sidebar()
 
+    def setup_search_sidebar(self):
+        """Setup the search sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="SEARCH",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Add search entry
+        search_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent", corner_radius=0)
+        search_frame.pack(fill="x", padx=5, pady=5)
+        
+        search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Search...",
+            height=30,
+            corner_radius=0
+        )
+        search_entry.pack(fill="x", padx=5)
+
     def toggle_source_control(self):
         if self.sidebar.winfo_viewable():
             self.sidebar.grid_remove()
         else:
             self.sidebar.grid()
             self.setup_source_control_sidebar()
+
+    def setup_source_control_sidebar(self):
+        """Setup the source control sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="SOURCE CONTROL",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Add placeholder content
+        content = ctk.CTkLabel(
+            self.sidebar,
+            text="Source control features\ncoming soon...",
+            text_color="#888888"
+        )
+        content.pack(pady=20)
 
     def toggle_debug(self):
         if self.sidebar.winfo_viewable():
@@ -1107,12 +1279,84 @@ class MinuxApp(ctk.CTk):
             self.sidebar.grid()
             self.setup_debug_sidebar()
 
+    def setup_debug_sidebar(self):
+        """Setup the debug sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="RUN AND DEBUG",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Add debug controls
+        controls_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent", corner_radius=0)
+        controls_frame.pack(fill="x", padx=5, pady=5)
+        
+        start_btn = ctk.CTkButton(
+            controls_frame,
+            text="Start Debugging",
+            height=30,
+            corner_radius=0,
+            command=lambda: print("Start debugging")
+        )
+        start_btn.pack(fill="x", pady=2)
+        
+        run_btn = ctk.CTkButton(
+            controls_frame,
+            text="Run Without Debugging",
+            height=30,
+            corner_radius=0,
+            command=lambda: print("Run without debugging")
+        )
+        run_btn.pack(fill="x", pady=2)
+
     def toggle_extensions(self):
         if self.sidebar.winfo_viewable():
             self.sidebar.grid_remove()
         else:
             self.sidebar.grid()
             self.setup_extensions_sidebar()
+
+    def setup_extensions_sidebar(self):
+        """Setup the extensions sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="EXTENSIONS",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Add search entry
+        search_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent", corner_radius=0)
+        search_frame.pack(fill="x", padx=5, pady=5)
+        
+        search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Search extensions...",
+            height=30,
+            corner_radius=0
+        )
+        search_entry.pack(fill="x", padx=5)
+
+        # Add placeholder content
+        content = ctk.CTkLabel(
+            self.sidebar,
+            text="No extensions installed",
+            text_color="#888888"
+        )
+        content.pack(pady=20)
 
     def toggle_music_theory(self):
         """Toggle the music theory sidebar and content"""
@@ -1361,225 +1605,91 @@ class MinuxApp(ctk.CTk):
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
+        file_menu.add_command(label="New File", command=lambda: self.new_file())
+        file_menu.add_command(label="New Window", command=lambda: self.new_window())
+        file_menu.add_separator()
+        file_menu.add_command(label="Open File...", command=lambda: self.open_file())
+        file_menu.add_command(label="Open Folder...", command=lambda: self.open_folder())
+        file_menu.add_separator()
+        file_menu.add_command(label="Save", command=lambda: self.save_file())
+        file_menu.add_command(label="Save As...", command=lambda: self.save_file_as())
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit_app)
+
+        # Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Edit", menu=edit_menu)
+        edit_menu.add_command(label="Undo", command=lambda: self.undo())
+        edit_menu.add_command(label="Redo", command=lambda: self.redo())
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Cut", command=lambda: self.cut())
+        edit_menu.add_command(label="Copy", command=lambda: self.copy())
+        edit_menu.add_command(label="Paste", command=lambda: self.paste())
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Find", command=lambda: self.find())
+        edit_menu.add_command(label="Replace", command=lambda: self.replace())
 
         # View menu
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="View", menu=view_menu)
         view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
-        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
+        view_menu.add_checkbutton(label="Problems", command=lambda: self.toggle_problems())
+        view_menu.add_checkbutton(label="Output", command=lambda: self.toggle_output())
+        view_menu.add_separator()
+        view_menu.add_checkbutton(label="Explorer", command=self.toggle_explorer)
+        view_menu.add_checkbutton(label="Search", command=self.toggle_search)
+        view_menu.add_checkbutton(label="Source Control", command=self.toggle_source_control)
+        view_menu.add_checkbutton(label="Run and Debug", command=self.toggle_debug)
+        view_menu.add_checkbutton(label="Extensions", command=self.toggle_extensions)
 
-        # TODO menu
-        todo_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="TODO", menu=todo_menu)
-        todo_menu.add_command(label="See TODO List", command=self.show_todo_list)
+        # Run menu
+        run_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Run", menu=run_menu)
+        run_menu.add_command(label="Start Debugging", command=lambda: self.start_debugging())
+        run_menu.add_command(label="Run Without Debugging", command=lambda: self.run_without_debugging())
+        run_menu.add_separator()
+        run_menu.add_command(label="Toggle Breakpoint", command=lambda: self.toggle_breakpoint())
 
-        # Themes menu
-        themes_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Themes", menu=themes_menu)
-        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
-        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
-        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
-        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
-        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
+        # Terminal menu
+        terminal_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Terminal", menu=terminal_menu)
+        terminal_menu.add_command(label="New Terminal", command=lambda: self.new_terminal())
+        terminal_menu.add_command(label="Split Terminal", command=lambda: self.split_terminal())
+        terminal_menu.add_separator()
+        terminal_menu.add_command(label="Clear", command=self.clear_terminal)
 
-    def show_todo_list(self):
-        """Open the TODO widget in a new tab"""
-        todo_widget = TodoWidget(self.tab_view)
-        self.tab_view.add_tab("TODO", todo_widget)
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Welcome", command=lambda: self.show_welcome())
+        help_menu.add_command(label="Documentation", command=lambda: self.show_documentation())
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=lambda: self.show_about())
 
-    def change_theme(self, theme_name):
-        """Change the application's color theme"""
-        if theme_name == "blue":
-            ctk.set_default_color_theme("blue")
-        elif theme_name == "green":
-            ctk.set_default_color_theme("green")
-        elif theme_name == "dark":
-            ctk.set_appearance_mode("Dark")
-        elif theme_name == "light":
-            ctk.set_appearance_mode("Light")
-        elif theme_name == "system":
-            ctk.set_appearance_mode("System")
-        
-        # Refresh the UI to apply the new theme
-        self.update()
-
-    def create_tab(self, title, content=None):
-        """Create a new tab in the tab bar"""
-        tab_frame = ctk.CTkFrame(
-            self.tab_bar,
-            fg_color=self.vscode_colors["tab_active"],
-            height=35
-        )
-        tab_frame.pack(side="left", padx=1, fill="y")
-        
-        tab_label = ctk.CTkLabel(
-            tab_frame,
-            text=title,
-            font=ctk.CTkFont(size=11),
-            text_color="#CCCCCC"
-        )
-        tab_label.pack(side="left", padx=10, pady=5)
-        
-        close_btn = ctk.CTkButton(
-            tab_frame,
-            text="×",
-            width=20,
-            height=20,
-            fg_color="transparent",
-            hover_color="#404040",
-            command=lambda: self.close_tab(tab_frame)
-        )
-        close_btn.pack(side="right", padx=5)
-        
-        return tab_frame
-
-    def close_tab(self, tab_frame):
-        """Close a tab"""
-        tab_frame.destroy()
-
-    def show_add_widget_dialog(self):
-        """Show the dialog for adding new widgets"""
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Add Widget")
-        dialog.geometry("600x400")
-        dialog.transient(self)
-        dialog.grab_set()
-
-        # Create a title for the widget section
-        title_label = ctk.CTkLabel(
-            dialog,
-            text="Available Widgets",
-            font=ctk.CTkFont(size=20, weight="bold")
-        )
-        title_label.pack(pady=(20, 10))
-
-        # Create a scrollable frame for widgets
-        scroll_frame = ctk.CTkScrollableFrame(dialog, corner_radius=0)
-        scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        # Widget categories
-        categories = {
-            "Productivity": [
-                ("TODO List", "todo", "Manage your tasks and to-dos"),
-                ("Notes", "notes", "Take and organize notes"),
-                ("Calendar", "calendar", "View and manage your schedule")
-            ],
-            "Tools": [
-                ("Clock", Clock, "Display current time"),
-                ("Timer", Timer, "Set countdown timers"),
-                ("StopWatch", StopWatch, "Track elapsed time"),
-                ("Alarm", Alarm, "Set alarms")
-            ],
-            "Fun": [
-                ("Doge", Doge, "A fun Doge widget")
-            ]
-        }
-
-        for category, widgets in categories.items():
-            # Category label
-            category_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent", corner_radius=0)
-            category_frame.pack(fill="x", pady=(10, 5))
-            
-            category_label = ctk.CTkLabel(
-                category_frame,
-                text=category,
-                font=ctk.CTkFont(size=16, weight="bold")
-            )
-            category_label.pack(anchor="w")
-
-            # Widget buttons
-            for widget_name, widget_class, description in widgets:
-                widget_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent", corner_radius=0)
-                widget_frame.pack(fill="x", pady=5)
-                
-                btn = ctk.CTkButton(
-                    widget_frame,
-                    text=widget_name,
-                    command=lambda w=widget_class: self.add_widget_from_dialog(w, dialog),
-                    width=150,
-                    height=32,
-                    corner_radius=0
-                )
-                btn.pack(side="left", padx=(20, 10))
-                
-                desc_label = ctk.CTkLabel(
-                    widget_frame,
-                    text=description,
-                    font=ctk.CTkFont(size=12),
-                    text_color="#888888"
-                )
-                desc_label.pack(side="left")
-
-    def add_widget_from_dialog(self, widget_class, dialog):
-        """Add a widget from the dialog and close it"""
-        if isinstance(widget_class, str):
-            self.add_widget(widget_class)
-        else:
-            self.add_widget_instance(widget_class)
-        dialog.destroy()
-
-    def setup_search_sidebar(self):
-        """Setup the search sidebar content"""
-        # Clear existing content
-        for widget in self.sidebar.winfo_children():
-            widget.destroy()
-            
-        # Add sidebar header
-        header = ctk.CTkLabel(
-            self.sidebar,
-            text="SEARCH",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#6F6F6F"
-        )
-        header.pack(pady=(10, 5), padx=10, anchor="w")
-
-    def setup_source_control_sidebar(self):
-        """Setup the source control sidebar content"""
-        # Clear existing content
-        for widget in self.sidebar.winfo_children():
-            widget.destroy()
-            
-        # Add sidebar header
-        header = ctk.CTkLabel(
-            self.sidebar,
-            text="SOURCE CONTROL",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#6F6F6F"
-        )
-        header.pack(pady=(10, 5), padx=10, anchor="w")
-
-    def setup_debug_sidebar(self):
-        """Setup the debug sidebar content"""
-        # Clear existing content
-        for widget in self.sidebar.winfo_children():
-            widget.destroy()
-            
-        # Add sidebar header
-        header = ctk.CTkLabel(
-            self.sidebar,
-            text="RUN AND DEBUG",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#6F6F6F"
-        )
-        header.pack(pady=(10, 5), padx=10, anchor="w")
-
-    def setup_extensions_sidebar(self):
-        """Setup the extensions sidebar content"""
-        # Clear existing content
-        for widget in self.sidebar.winfo_children():
-            widget.destroy()
-            
-        # Add sidebar header
-        header = ctk.CTkLabel(
-            self.sidebar,
-            text="EXTENSIONS",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#6F6F6F"
-        )
-        header.pack(pady=(10, 5), padx=10, anchor="w")
+        # Add placeholder methods for new menu items
+        self.new_file = lambda: print("New File")
+        self.new_window = lambda: print("New Window")
+        self.open_file = lambda: print("Open File")
+        self.open_folder = lambda: print("Open Folder")
+        self.save_file = lambda: print("Save File")
+        self.save_file_as = lambda: print("Save As")
+        self.undo = lambda: print("Undo")
+        self.redo = lambda: print("Redo")
+        self.cut = lambda: print("Cut")
+        self.copy = lambda: print("Copy")
+        self.paste = lambda: print("Paste")
+        self.find = lambda: print("Find")
+        self.replace = lambda: print("Replace")
+        self.toggle_problems = lambda: print("Toggle Problems")
+        self.toggle_output = lambda: print("Toggle Output")
+        self.start_debugging = lambda: print("Start Debugging")
+        self.run_without_debugging = lambda: print("Run Without Debugging")
+        self.toggle_breakpoint = lambda: print("Toggle Breakpoint")
+        self.new_terminal = lambda: print("New Terminal")
+        self.split_terminal = lambda: print("Split Terminal")
+        self.show_welcome = lambda: print("Show Welcome")
+        self.show_documentation = lambda: print("Show Documentation")
+        self.show_about = lambda: print("Show About")
 
 if __name__ == "__main__":
     try:

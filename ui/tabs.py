@@ -1,105 +1,129 @@
 import customtkinter as ctk
+import tkinter as tk
 from PIL import Image
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TabView(ctk.CTkFrame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.tabs = {}  # {tab_id: {"title": str, "content": widget}}
-        self.current_tab = None
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
-        # Create tab bar
-        self.tab_bar = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0, height=35)
-        self.tab_bar.pack(fill="x", padx=0, pady=0)
+        # Set the background color for the main frame
+        self.configure(fg_color="#1e1e1e")
+        
+        # Create tab bar (fixed height of 35)
+        self.tab_bar = ctk.CTkFrame(self, height=35, fg_color="#1e1e1e")
+        self.tab_bar.pack(side="top", fill="x", pady=0)
         self.tab_bar.pack_propagate(False)
         
-        # Create content area
-        self.content_area = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        self.content_area.pack(fill="both", expand=True)
+        # Create tab container for buttons
+        self.tab_container = ctk.CTkFrame(self.tab_bar, fg_color="transparent")
+        self.tab_container.pack(side="left", fill="y")
         
+        # Initialize tab tracking
+        self.tabs = {}
+        self.current_tab = None
+        
+    def add_tab(self, title, content):
+        """Add a new tab with the given title and content"""
         try:
-            self.close_image = ctk.CTkImage(
-                light_image=Image.open("media/icons/close.png"),
-                dark_image=Image.open("media/icons/close.png"),
-                size=(12, 12)
+            # Create tab button frame
+            tab_frame = ctk.CTkFrame(self.tab_container, fg_color="transparent")
+            tab_frame.pack(side="left", padx=1)
+            
+            # Create tab button
+            tab_button = ctk.CTkButton(
+                tab_frame,
+                text=title,
+                width=120,
+                height=35,
+                fg_color="#252526",
+                hover_color="#404040",
+                corner_radius=0,
+                command=lambda: self.select_tab(title)
             )
-        except Exception as e:
-            print(f"Error loading tab icons: {e}")
-            self.close_image = None
-    
-    def add_tab(self, title, content, select=True):
-        # Create tab button frame
-        tab_frame = ctk.CTkFrame(self.tab_bar, fg_color="transparent", corner_radius=0)
-        tab_frame.pack(side="left", padx=(0, 1))
-        
-        # Create tab button
-        tab_btn = ctk.CTkButton(
-            tab_frame,
-            text=title,
-            fg_color="transparent",
-            hover_color="gray20",
-            corner_radius=0,
-            height=35,
-            compound="left",
-            command=lambda: self.select_tab(title)
-        )
-        tab_btn.pack(side="left")
-        
-        # Create close button
-        close_btn = ctk.CTkButton(
-            tab_frame,
-            text="",
-            image=self.close_image,
-            fg_color="transparent",
-            hover_color="gray20",
-            corner_radius=0,
-            width=20,
-            height=35,
-            command=lambda: self.close_tab(title)
-        )
-        close_btn.pack(side="right")
-        
-        # Store tab info
-        self.tabs[title] = {
-            "frame": tab_frame,
-            "button": tab_btn,
-            "close": close_btn,
-            "content": content
-        }
-        
-        # Select the new tab if requested
-        if select or len(self.tabs) == 1:
+            tab_button.pack(side="left")
+            
+            # Create close button
+            close_button = ctk.CTkButton(
+                tab_frame,
+                text="×",
+                width=20,
+                height=35,
+                fg_color="#252526",
+                hover_color="#404040",
+                corner_radius=0,
+                command=lambda: self.close_tab(title)
+            )
+            close_button.pack(side="left")
+            
+            # Configure content
+            if isinstance(content, (ctk.CTkBaseClass, tk.Widget)):
+                content.pack_forget()  # Ensure it's not visible initially
+                content.master = self  # Set parent to main frame
+            
+            # Store tab information
+            self.tabs[title] = {
+                "button_frame": tab_frame,
+                "button": tab_button,
+                "content": content
+            }
+            
+            # Select the new tab
             self.select_tab(title)
-    
+            
+        except Exception as e:
+            logger.error(f"Error adding tab: {str(e)}")
+            raise
+
     def select_tab(self, title):
-        # Hide current tab content
-        if self.current_tab and self.current_tab in self.tabs:
-            self.tabs[self.current_tab]["content"].pack_forget()
-            self.tabs[self.current_tab]["frame"].configure(fg_color="transparent")
-            self.tabs[self.current_tab]["button"].configure(fg_color="transparent")
-            self.tabs[self.current_tab]["close"].configure(fg_color="transparent")
+        """Select the specified tab"""
+        if title not in self.tabs or title == self.current_tab:
+            return
+            
+        # Update button appearances
+        for tab_title, tab_info in self.tabs.items():
+            tab_info["button"].configure(fg_color="#252526")
+            
+        self.tabs[title]["button"].configure(fg_color="#1e1e1e")
         
-        # Show new tab content
-        if title in self.tabs:
-            self.current_tab = title
-            self.tabs[title]["content"].pack(in_=self.content_area, fill="both", expand=True)
-            self.tabs[title]["frame"].configure(fg_color="gray20")
-            self.tabs[title]["button"].configure(fg_color="gray20")
-            self.tabs[title]["close"].configure(fg_color="gray20")
-    
+        # Hide all content
+        for tab_info in self.tabs.values():
+            content = tab_info["content"]
+            if isinstance(content, (ctk.CTkBaseClass, tk.Widget)):
+                content.pack_forget()
+        
+        # Show selected content
+        content = self.tabs[title]["content"]
+        if isinstance(content, (ctk.CTkBaseClass, tk.Widget)):
+            content.pack(side="top", fill="both", expand=True, pady=0)
+        
+        self.current_tab = title
+
     def close_tab(self, title):
-        if title in self.tabs:
-            # Remove tab widgets
-            self.tabs[title]["frame"].destroy()
-            self.tabs[title]["content"].destroy()
+        """Close the specified tab"""
+        if title not in self.tabs:
+            return
             
-            # If closing current tab, select another one
-            if self.current_tab == title:
-                remaining_tabs = list(self.tabs.keys())
-                remaining_tabs.remove(title)
-                if remaining_tabs:
-                    self.select_tab(remaining_tabs[0])
-                else:
-                    self.current_tab = None
-            
-            # Remove tab from storage
-            del self.tabs[title] 
+        # Get remaining tabs
+        remaining_tabs = [t for t in self.tabs.keys() if t != title]
+        
+        # Clean up the tab
+        if title == self.current_tab:
+            content = self.tabs[title]["content"]
+            if isinstance(content, (ctk.CTkBaseClass, tk.Widget)):
+                content.pack_forget()
+        
+        self.tabs[title]["button_frame"].destroy()
+        del self.tabs[title]
+        
+        # Select another tab if available
+        if remaining_tabs:
+            self.select_tab(remaining_tabs[0])
+        else:
+            self.current_tab = None
+
+    def get_current_tab(self):
+        """Get the currently selected tab"""
+        return self.current_tab 
