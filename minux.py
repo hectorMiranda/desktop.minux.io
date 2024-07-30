@@ -220,6 +220,7 @@ class MinuxApp(ctk.CTk):
             git_icon = ctk.CTkImage(Image.open("media/icons/git.png"), size=(24, 24))
             debug_icon = ctk.CTkImage(Image.open("media/icons/debug.png"), size=(24, 24))
             extensions_icon = ctk.CTkImage(Image.open("media/icons/extensions.png"), size=(24, 24))
+            music_icon = ctk.CTkImage(Image.open("media/icons/notes.png"), size=(24, 24))
             
             # Create buttons
             buttons = [
@@ -227,7 +228,8 @@ class MinuxApp(ctk.CTk):
                 ("Search", search_icon),
                 ("Source Control", git_icon),
                 ("Debug", debug_icon),
-                ("Extensions", extensions_icon)
+                ("Extensions", extensions_icon),
+                ("Music Theory", music_icon)
             ]
             
             for i, (name, icon) in enumerate(buttons):
@@ -239,7 +241,7 @@ class MinuxApp(ctk.CTk):
                     height=48,
                     fg_color="transparent",
                     hover_color="#505050",
-                    command=lambda w=name: self.toggle_explorer(),
+                    command=lambda w=name: self.toggle_music_theory() if w == "Music Theory" else self.toggle_explorer(),
                     corner_radius=0
                 )
                 btn.grid(row=i, column=0, pady=(5, 0))
@@ -1057,43 +1059,6 @@ class MinuxApp(ctk.CTk):
         # Hide notification
         self.hide_notification()
 
-    def setup_activity_bar(self):
-        """Setup the VSCode-like activity bar with icons"""
-        # Load and create activity bar buttons
-        icon_size = (20, 20)
-        button_configs = [
-            ("files.png", "Explorer", self.toggle_explorer),
-            ("search.png", "Search", self.toggle_search),
-            ("git.png", "Source Control", self.toggle_source_control),
-            ("debug.png", "Run and Debug", self.toggle_debug),
-            ("extensions.png", "Extensions", self.toggle_extensions)
-        ]
-        
-        for i, (icon_name, tooltip, command) in enumerate(button_configs):
-            try:
-                icon = ctk.CTkImage(
-                    Image.open(f"./media/icons/{icon_name}").resize(icon_size),
-                    size=icon_size
-                )
-                btn = ctk.CTkButton(
-                    self.activity_bar,
-                    image=icon,
-                    text="",
-                    width=48,
-                    height=48,
-                    fg_color="transparent",
-                    hover_color="#404040",
-                    command=command,
-                    corner_radius=0
-                )
-                btn.grid(row=i, column=0, pady=(5, 0))
-                
-                # Create tooltip (you'll need to implement this)
-                # self.create_tooltip(btn, tooltip)
-                
-            except Exception as e:
-                logger.error(f"Failed to load icon {icon_name}: {str(e)}")
-
     def toggle_explorer(self):
         """Toggle the file explorer sidebar"""
         if self.sidebar.winfo_viewable():
@@ -1148,6 +1113,298 @@ class MinuxApp(ctk.CTk):
         else:
             self.sidebar.grid()
             self.setup_extensions_sidebar()
+
+    def toggle_music_theory(self):
+        """Toggle the music theory sidebar and content"""
+        if self.sidebar.winfo_viewable():
+            self.sidebar.grid_remove()
+        else:
+            self.sidebar.grid()
+            self.setup_music_theory_sidebar()
+            self.show_music_theory_content()
+
+    def setup_music_theory_sidebar(self):
+        """Setup the music theory sidebar content"""
+        # Clear existing content
+        for widget in self.sidebar.winfo_children():
+            widget.destroy()
+            
+        # Add sidebar header
+        header = ctk.CTkLabel(
+            self.sidebar,
+            text="MUSIC THEORY",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#6F6F6F"
+        )
+        header.pack(pady=(10, 5), padx=10, anchor="w")
+
+        # Create a frame for the scale list
+        scales_frame = ctk.CTkScrollableFrame(self.sidebar, corner_radius=0)
+        scales_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # List of common scales
+        scales = [
+            "C Major", "G Major", "D Major", "A Major", "E Major",
+            "B Major", "F# Major", "C# Major",
+            "F Major", "Bb Major", "Eb Major", "Ab Major",
+            "Db Major", "Gb Major", "Cb Major",
+            "A minor", "E minor", "B minor", "F# minor",
+            "C# minor", "G# minor", "D# minor", "A# minor",
+            "D minor", "G minor", "C minor", "F minor",
+            "Bb minor", "Eb minor", "Ab minor"
+        ]
+
+        for scale in scales:
+            btn = ctk.CTkButton(
+                scales_frame,
+                text=scale,
+                fg_color="transparent",
+                hover_color="#404040",
+                anchor="w",
+                command=lambda s=scale: self.show_scale_details(s),
+                corner_radius=0
+            )
+            btn.pack(fill="x", pady=2)
+
+    def show_music_theory_content(self):
+        """Show the main music theory content area"""
+        # Create a new tab for music theory if it doesn't exist
+        self.music_theory_tab = ctk.CTkFrame(self.tab_view)
+        self.tab_view.add_tab("Music Theory", self.music_theory_tab)
+            
+        # Add welcome content
+        welcome_label = ctk.CTkLabel(
+            self.music_theory_tab,
+            text="Welcome to Music Theory\nSelect a scale from the sidebar to view details",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#FFFFFF"
+        )
+        welcome_label.pack(pady=20)
+
+    def show_scale_details(self, scale_name):
+        """Show the details of the selected scale"""
+        # Ensure the music theory tab exists
+        if not hasattr(self, 'music_theory_tab') or not self.music_theory_tab.winfo_exists():
+            self.show_music_theory_content()
+        
+        # Clear existing content in the music theory tab
+        for widget in self.music_theory_tab.winfo_children():
+            widget.destroy()
+
+        # Add scale title
+        title = ctk.CTkLabel(
+            self.music_theory_tab,
+            text=f"{scale_name} Scale",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="#FFFFFF"
+        )
+        title.pack(pady=(20, 10))
+
+        # Add scale notes
+        notes_frame = ctk.CTkFrame(self.music_theory_tab, fg_color="transparent")
+        notes_frame.pack(pady=10)
+        
+        # Get notes for the scale
+        notes = self.get_scale_notes(scale_name)
+        notes_label = ctk.CTkLabel(
+            notes_frame,
+            text=" - ".join(notes),
+            font=ctk.CTkFont(size=18),
+            text_color="#FFFFFF"
+        )
+        notes_label.pack()
+
+        # Add staff view
+        staff_frame = ctk.CTkFrame(self.music_theory_tab, fg_color="#2D2D2D")
+        staff_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        
+        # Create canvas for drawing the staff
+        canvas = tk.Canvas(
+            staff_frame,
+            bg="#2D2D2D",
+            height=200,
+            highlightthickness=0
+        )
+        canvas.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Draw the grand staff
+        self.draw_grand_staff(canvas, notes, scale_name)
+
+    def draw_grand_staff(self, canvas, notes, scale_name):
+        """Draw the grand staff with the given notes"""
+        # Staff dimensions and positioning
+        staff_width = 600
+        line_spacing = 10
+        treble_start_y = 50
+        bass_start_y = 150
+        staff_left_margin = 80  # Increased margin for clefs
+        
+        # Draw treble staff lines
+        for i in range(5):
+            y = treble_start_y + i * line_spacing
+            canvas.create_line(staff_left_margin, y, staff_width, y, fill="white")
+            
+        # Draw bass staff lines
+        for i in range(5):
+            y = bass_start_y + i * line_spacing
+            canvas.create_line(staff_left_margin, y, staff_width, y, fill="white")
+            
+        # Draw treble clef
+        treble_clef = "𝄞"
+        canvas.create_text(
+            staff_left_margin - 20,
+            treble_start_y + 2*line_spacing,
+            text=treble_clef,
+            fill="white",
+            font=("Times", 40),
+            anchor="e"
+        )
+        
+        # Draw bass clef
+        bass_clef = "𝄢"
+        canvas.create_text(
+            staff_left_margin - 20,
+            bass_start_y + 2*line_spacing,
+            text=bass_clef,
+            fill="white",
+            font=("Times", 40),
+            anchor="e"
+        )
+
+        # Note positions relative to the staff lines (0 = middle line)
+        note_positions = {
+            "C": 6,  # Two ledger lines below treble staff
+            "D": 5,
+            "E": 4,
+            "F": 3,
+            "G": 2,
+            "A": 1,
+            "B": 0,
+        }
+
+        # Draw notes
+        x = staff_left_margin + 50  # Starting x position for notes
+        x_spacing = 60  # Space between notes
+        
+        for note in notes:
+            base_note = note[0]  # Get the base note letter
+            
+            # Get the position from our note_positions dictionary
+            if base_note in note_positions:
+                position = note_positions[base_note]
+                y = treble_start_y + position * (line_spacing/2)
+                
+                # Draw the note head
+                canvas.create_oval(x-6, y-4, x+6, y+4, fill="white", outline="white")
+                
+                # Draw ledger lines if needed
+                if position >= 6:  # Notes below the staff
+                    for ledger_y in range(5, position + 1, 2):
+                        line_y = treble_start_y + ledger_y * (line_spacing/2)
+                        canvas.create_line(x-10, line_y, x+10, line_y, fill="white")
+                
+                # Draw accidentals if present
+                if len(note) > 1:
+                    accidental = note[1:]
+                    if accidental == "#":
+                        canvas.create_text(x-15, y, text="♯", fill="white", font=("Times", 16))
+                    elif accidental == "b":
+                        canvas.create_text(x-15, y, text="♭", fill="white", font=("Times", 16))
+            
+            x += x_spacing
+
+        # Draw bar line at the end
+        canvas.create_line(staff_width - 10, treble_start_y, staff_width - 10, treble_start_y + 4*line_spacing, fill="white", width=2)
+        canvas.create_line(staff_width - 10, bass_start_y, staff_width - 10, bass_start_y + 4*line_spacing, fill="white", width=2)
+
+    def get_scale_notes(self, scale_name):
+        """Calculate the notes for a given scale"""
+        # This is a simplified version - you would need to implement proper scale calculations
+        notes = {
+            "C Major": ["C", "D", "E", "F", "G", "A", "B"],
+            "G Major": ["G", "A", "B", "C", "D", "E", "F#"],
+            "D Major": ["D", "E", "F#", "G", "A", "B", "C#"],
+            "A Major": ["A", "B", "C#", "D", "E", "F#", "G#"],
+            "E Major": ["E", "F#", "G#", "A", "B", "C#", "D#"],
+            "B Major": ["B", "C#", "D#", "E", "F#", "G#", "A#"],
+            "F# Major": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
+            "C# Major": ["C#", "D#", "E#", "F#", "G#", "A#", "B#"],
+            "F Major": ["F", "G", "A", "Bb", "C", "D", "E"],
+            "Bb Major": ["Bb", "C", "D", "Eb", "F", "G", "A"],
+            "Eb Major": ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
+            "Ab Major": ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
+            "Db Major": ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
+            "Gb Major": ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
+            "Cb Major": ["Cb", "Db", "Eb", "Fb", "Gb", "Ab", "Bb"],
+            # Add minor scales here
+        }
+        return notes.get(scale_name, ["C", "D", "E", "F", "G", "A", "B"])  # Default to C major if scale not found
+
+    def on_file_select(self, file_path):
+        # Check if file is already open in a tab
+        if file_path in self.tab_view.tabs:
+            self.tab_view.select_tab(file_path)
+            return
+        
+        # Create new file viewer
+        viewer = FileViewer(self.tab_view)
+        viewer.load_file(file_path)
+        
+        # Add new tab
+        self.tab_view.add_tab(file_path, viewer)
+
+    def create_menu(self):
+        """Create the main menu bar"""
+        menubar = tk.Menu(self)
+        self.configure(menu=menubar)
+
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.quit_app)
+
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
+        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
+
+        # TODO menu
+        todo_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="TODO", menu=todo_menu)
+        todo_menu.add_command(label="See TODO List", command=self.show_todo_list)
+
+        # Themes menu
+        themes_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Themes", menu=themes_menu)
+        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
+        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
+        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
+        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
+        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
+
+    def show_todo_list(self):
+        """Open the TODO widget in a new tab"""
+        todo_widget = TodoWidget(self.tab_view)
+        self.tab_view.add_tab("TODO", todo_widget)
+
+    def change_theme(self, theme_name):
+        """Change the application's color theme"""
+        if theme_name == "blue":
+            ctk.set_default_color_theme("blue")
+        elif theme_name == "green":
+            ctk.set_default_color_theme("green")
+        elif theme_name == "dark":
+            ctk.set_appearance_mode("Dark")
+        elif theme_name == "light":
+            ctk.set_appearance_mode("Light")
+        elif theme_name == "system":
+            ctk.set_appearance_mode("System")
+        
+        # Refresh the UI to apply the new theme
+        self.update()
 
     def create_tab(self, title, content=None):
         """Create a new tab in the tab bar"""
@@ -1323,72 +1580,6 @@ class MinuxApp(ctk.CTk):
             text_color="#6F6F6F"
         )
         header.pack(pady=(10, 5), padx=10, anchor="w")
-
-    def on_file_select(self, file_path):
-        # Check if file is already open in a tab
-        if file_path in self.tab_view.tabs:
-            self.tab_view.select_tab(file_path)
-            return
-        
-        # Create new file viewer
-        viewer = FileViewer(self.tab_view)
-        viewer.load_file(file_path)
-        
-        # Add new tab
-        self.tab_view.add_tab(file_path, viewer)
-
-    def create_menu(self):
-        """Create the main menu bar"""
-        menubar = tk.Menu(self)
-        self.configure(menu=menubar)
-
-        # File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="New Widget", command=self.show_add_widget_dialog)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.quit_app)
-
-        # View menu
-        view_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_checkbutton(label="Terminal", command=self.toggle_terminal)
-        view_menu.add_checkbutton(label="Sidebar", command=self.toggle_explorer)
-
-        # TODO menu
-        todo_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="TODO", menu=todo_menu)
-        todo_menu.add_command(label="See TODO List", command=self.show_todo_list)
-
-        # Themes menu
-        themes_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Themes", menu=themes_menu)
-        themes_menu.add_command(label="Blue (Default)", command=lambda: self.change_theme("blue"))
-        themes_menu.add_command(label="Green", command=lambda: self.change_theme("green"))
-        themes_menu.add_command(label="Dark", command=lambda: self.change_theme("dark"))
-        themes_menu.add_command(label="Light", command=lambda: self.change_theme("light"))
-        themes_menu.add_command(label="System", command=lambda: self.change_theme("system"))
-
-    def show_todo_list(self):
-        """Open the TODO widget in a new tab"""
-        todo_widget = TodoWidget(self.tab_view)
-        self.tab_view.add_tab("TODO", todo_widget)
-
-    def change_theme(self, theme_name):
-        """Change the application's color theme"""
-        if theme_name == "blue":
-            ctk.set_default_color_theme("blue")
-        elif theme_name == "green":
-            ctk.set_default_color_theme("green")
-        elif theme_name == "dark":
-            ctk.set_appearance_mode("Dark")
-        elif theme_name == "light":
-            ctk.set_appearance_mode("Light")
-        elif theme_name == "system":
-            ctk.set_appearance_mode("System")
-        
-        # Refresh the UI to apply the new theme
-        self.update()
 
 if __name__ == "__main__":
     try:
