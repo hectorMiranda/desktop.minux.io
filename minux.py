@@ -180,6 +180,38 @@ class MinuxApp(ctk.CTk):
         self.title("Minux")
         self.geometry("1200x800")
         
+        # Set window icon
+        try:
+            icon_path = os.path.join("media", "images", "logo.png")
+            if os.path.exists(icon_path):
+                # Load and convert image
+                icon_image = Image.open(icon_path)
+                # Convert to RGBA if not already
+                if icon_image.mode != 'RGBA':
+                    icon_image = icon_image.convert('RGBA')
+                # Create PhotoImage for the icon
+                icon_photo = ImageTk.PhotoImage(icon_image)
+                # Try both methods to set the icon
+                self.wm_iconphoto(True, icon_photo)
+                # For Windows/WSL compatibility
+                if platform.system() == "Windows" or "microsoft" in platform.uname().release.lower():
+                    # Create a temporary .ico file
+                    ico_path = os.path.join("media", "images", "temp_icon.ico")
+                    icon_image.save(ico_path, format='ICO', sizes=[(32, 32)])
+                    self.iconbitmap(ico_path)
+                    # Clean up temporary file
+                    try:
+                        os.remove(ico_path)
+                    except:
+                        pass
+                # Keep a reference to prevent garbage collection
+                self.icon_photo = icon_photo
+                logger.info("Application icon set successfully")
+            else:
+                logger.warning("Icon file not found at: " + icon_path)
+        except Exception as e:
+            logger.error(f"Failed to set application icon: {str(e)}")
+        
         # Configure grid weights
         self.grid_columnconfigure(2, weight=1)  # Make tab view expand
         self.grid_rowconfigure(0, weight=1)
@@ -262,7 +294,22 @@ class MinuxApp(ctk.CTk):
                     try:
                         icon_path = os.path.join(icons_path, icon_file)
                         if os.path.exists(icon_path):
-                            icon = ctk.CTkImage(Image.open(icon_path), size=(24, 24))
+                            # Load and convert image to RGBA if it's the TODO icon
+                            img = Image.open(icon_path)
+                            if name == "TODO List":
+                                if img.mode != 'RGBA':
+                                    img = img.convert('RGBA')
+                                # Create a white version of the icon
+                                data = img.getdata()
+                                newData = []
+                                for item in data:
+                                    # Change all non-transparent pixels to white
+                                    if item[3] > 0:  # If pixel is not transparent
+                                        newData.append((255, 255, 255, item[3]))
+                                    else:
+                                        newData.append(item)
+                                img.putdata(newData)
+                            icon = ctk.CTkImage(img, size=(24, 24))
                     except Exception as e:
                         logger.debug(f"Could not load icon {icon_file}: {str(e)}")
                 
