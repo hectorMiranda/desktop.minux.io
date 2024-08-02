@@ -22,6 +22,7 @@ from ui.explorer import FileExplorer
 from ui.tabs import TabView
 from ui.file_viewer import FileViewer
 from ui.widgets.todo import TodoWidget
+from ui.welcome import WelcomeScreen
 
 
 # Set dark mode as default
@@ -229,6 +230,9 @@ class MinuxApp(ctk.CTk):
         # Create tab view
         self.tab_view = TabView(self)
         self.tab_view.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
+        
+        # Show welcome screen
+        self.show_welcome_screen()
         
         # Create terminal panel
         self.terminal_frame = ctk.CTkFrame(self, fg_color=self.vscode_colors['panel_bg'], height=200, corner_radius=0)
@@ -1737,6 +1741,51 @@ class MinuxApp(ctk.CTk):
         self.show_welcome = lambda: print("Show Welcome")
         self.show_documentation = lambda: print("Show Documentation")
         self.show_about = lambda: print("Show About")
+
+    def show_welcome_screen(self):
+        """Show the welcome screen in the main content area"""
+        welcome = WelcomeScreen(self.tab_view, self.handle_welcome_action)
+        self.tab_view.add_tab("Welcome", welcome)
+    
+    def handle_welcome_action(self, action):
+        """Handle actions from the welcome screen"""
+        if isinstance(action, tuple):
+            action_type, path = action
+            if action_type == "open":
+                if os.path.isdir(path):
+                    self.open_folder(path)
+                else:
+                    self.open_file(path)
+        else:
+            if action == "New File":
+                self.new_file()
+            elif action == "Open Folder":
+                self.open_folder()
+            elif action == "Clone Git Repository":
+                self.clone_repository()
+            elif action == "Open Terminal":
+                self.toggle_terminal()
+            elif action == "Get Started":
+                self.show_getting_started()
+            elif action == "Documentation":
+                self.show_documentation()
+            elif action == "Tips and Tricks":
+                self.show_tips()
+    
+    def show_getting_started(self):
+        """Show getting started guide"""
+        # TODO: Implement getting started guide
+        pass
+    
+    def show_tips(self):
+        """Show tips and tricks"""
+        # TODO: Implement tips and tricks
+        pass
+    
+    def clone_repository(self):
+        """Show dialog to clone a git repository"""
+        # TODO: Implement repository cloning
+        pass
 
 if __name__ == "__main__":
     try:
