@@ -1665,6 +1665,8 @@ class MinuxApp(ctk.CTk):
         file_menu.add_command(label="Save", command=lambda: self.save_file())
         file_menu.add_command(label="Save As...", command=lambda: self.save_file_as())
         file_menu.add_separator()
+        file_menu.add_command(label="Preferences", command=lambda: self.show_preferences())
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit_app)
 
         # Edit menu
@@ -1786,6 +1788,179 @@ class MinuxApp(ctk.CTk):
         """Show dialog to clone a git repository"""
         # TODO: Implement repository cloning
         pass
+
+    def show_preferences(self):
+        """Show the settings/preferences tab"""
+        # Create settings frame if it doesn't exist
+        settings_frame = ctk.CTkFrame(self.tab_view, fg_color="#1e1e1e")
+        
+        # Create two-column layout
+        left_column = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        left_column.pack(side="left", fill="y", padx=(20, 10), pady=20)
+        
+        right_column = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent")
+        right_column.pack(side="left", fill="both", expand=True, padx=(10, 20), pady=20)
+        
+        # Add search bar at the top
+        search_frame = ctk.CTkFrame(left_column, fg_color="transparent")
+        search_frame.pack(fill="x", pady=(0, 10))
+        
+        search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Search settings",
+            height=32,
+            corner_radius=0
+        )
+        search_entry.pack(fill="x")
+        
+        # Add settings categories
+        categories = [
+            "Commonly Used",
+            "Text Editor",
+            "Workbench",
+            "Window",
+            "Features",
+            "Application",
+            "Security",
+            "Extensions"
+        ]
+        
+        for category in categories:
+            btn = ctk.CTkButton(
+                left_column,
+                text=category,
+                fg_color="transparent",
+                hover_color="#2a2d2e",
+                anchor="w",
+                height=32,
+                corner_radius=0,
+                command=lambda c=category: self.show_settings_category(c, right_column)
+            )
+            btn.pack(fill="x", pady=1)
+        
+        # Show initial category (Commonly Used)
+        self.show_settings_category("Commonly Used", right_column)
+        
+        # Add the settings to the tab view
+        self.tab_view.add_tab("Settings", settings_frame)
+
+    def show_settings_category(self, category, container):
+        """Show settings for the selected category"""
+        # Clear existing content
+        for widget in container.winfo_children():
+            widget.destroy()
+            
+        # Add category title
+        title = ctk.CTkLabel(
+            container,
+            text=category,
+            font=ctk.CTkFont(size=24, weight="bold"),
+            anchor="w"
+        )
+        title.pack(fill="x", pady=(0, 20))
+        
+        if category == "Commonly Used":
+            # Files: Auto Save
+            self.create_setting_group(container, "Files", [
+                {
+                    "title": "Auto Save",
+                    "description": "Controls auto save of editors that have unsaved changes.",
+                    "type": "dropdown",
+                    "options": ["off", "afterDelay", "onFocusChange", "onWindowChange"],
+                    "default": "off"
+                }
+            ])
+            
+            # Editor settings
+            self.create_setting_group(container, "Editor", [
+                {
+                    "title": "Font Size",
+                    "description": "Controls the font size in pixels.",
+                    "type": "number",
+                    "default": "14"
+                },
+                {
+                    "title": "Font Family",
+                    "description": "Controls the font family.",
+                    "type": "text",
+                    "default": "Consolas, 'Courier New', monospace"
+                },
+                {
+                    "title": "Tab Size",
+                    "description": "The number of spaces a tab is equal to.",
+                    "type": "number",
+                    "default": "4"
+                },
+                {
+                    "title": "Render Whitespace",
+                    "description": "Controls how the editor should render whitespace characters.",
+                    "type": "dropdown",
+                    "options": ["none", "boundary", "selection", "all"],
+                    "default": "selection"
+                }
+            ])
+
+    def create_setting_group(self, container, title, settings):
+        """Create a group of related settings"""
+        # Group title
+        group_title = ctk.CTkLabel(
+            container,
+            text=title,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#6F6F6F",
+            anchor="w"
+        )
+        group_title.pack(fill="x", pady=(0, 10))
+        
+        # Settings
+        for setting in settings:
+            frame = ctk.CTkFrame(container, fg_color="transparent")
+            frame.pack(fill="x", pady=(0, 15))
+            
+            # Title and description
+            title_label = ctk.CTkLabel(
+                frame,
+                text=setting["title"],
+                font=ctk.CTkFont(size=13),
+                anchor="w"
+            )
+            title_label.pack(fill="x")
+            
+            desc_label = ctk.CTkLabel(
+                frame,
+                text=setting["description"],
+                font=ctk.CTkFont(size=11),
+                text_color="#8B8B8B",
+                anchor="w"
+            )
+            desc_label.pack(fill="x")
+            
+            # Input control based on type
+            if setting["type"] == "dropdown":
+                dropdown = ctk.CTkOptionMenu(
+                    frame,
+                    values=setting["options"],
+                    height=32,
+                    corner_radius=0
+                )
+                dropdown.set(setting["default"])
+                dropdown.pack(fill="x", pady=(5, 0))
+            elif setting["type"] == "number":
+                entry = ctk.CTkEntry(
+                    frame,
+                    height=32,
+                    corner_radius=0
+                )
+                entry.insert(0, setting["default"])
+                entry.pack(fill="x", pady=(5, 0))
+            elif setting["type"] == "text":
+                entry = ctk.CTkEntry(
+                    frame,
+                    height=32,
+                    corner_radius=0
+                )
+                entry.insert(0, setting["default"])
+                entry.pack(fill="x", pady=(5, 0))
 
 if __name__ == "__main__":
     try:
