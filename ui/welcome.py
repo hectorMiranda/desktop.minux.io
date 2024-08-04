@@ -1,199 +1,230 @@
 import customtkinter as ctk
 from PIL import Image
 import os
+import sqlite3
+from datetime import datetime
 
 class WelcomeScreen(ctk.CTkFrame):
-    def __init__(self, parent, on_action=None):
-        super().__init__(parent, fg_color="#1e1e1e")
-        self.on_action = on_action or (lambda x: None)
+    def __init__(self, parent, callback):
+        super().__init__(parent, fg_color="#1e1e1e", corner_radius=0)
+        self.callback = callback
         
-        # Create main container with some padding
-        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_container.pack(expand=True, fill="both", padx=40, pady=20)
+        # Create main container
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(expand=True, fill="both", padx=40, pady=40)
         
         # Title section
-        self.create_title_section()
+        title_frame = ctk.CTkFrame(container, fg_color="transparent")
+        title_frame.pack(fill="x", pady=(0, 40))
+        
+        # Load and display logo
+        logo_path = os.path.join("media", "images", "logo.png")
+        if os.path.exists(logo_path):
+            try:
+                logo_image = Image.open(logo_path)
+                if logo_image.mode != 'RGBA':
+                    logo_image = logo_image.convert('RGBA')
+                logo_img = ctk.CTkImage(light_image=logo_image, dark_image=logo_image, size=(64, 64))
+                logo_label = ctk.CTkLabel(title_frame, image=logo_img, text="")
+                logo_label.pack(side="left")
+            except Exception as e:
+                print(f"Error loading logo: {e}")
+        
+        # Title and description
+        text_frame = ctk.CTkFrame(title_frame, fg_color="transparent")
+        text_frame.pack(side="left", padx=20)
+        
+        title = ctk.CTkLabel(
+            text_frame,
+            text="Welcome to Minux",
+            font=ctk.CTkFont(size=28, weight="bold"),
+            text_color="#CCCCCC"
+        )
+        title.pack(anchor="w")
+        
+        description = ctk.CTkLabel(
+            text_frame,
+            text="Your all-in-one development environment",
+            font=ctk.CTkFont(size=14),
+            text_color="#888888"
+        )
+        description.pack(anchor="w")
         
         # Create two-column layout
-        self.columns_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.columns_frame.pack(expand=True, fill="both", pady=(20, 0))
+        columns_frame = ctk.CTkFrame(container, fg_color="transparent")
+        columns_frame.pack(fill="both", expand=True)
         
-        # Left column (Quick Start)
-        self.left_column = ctk.CTkFrame(self.columns_frame, fg_color="transparent")
-        self.left_column.pack(side="left", fill="both", expand=True, padx=(0, 20))
-        self.create_quick_start_section()
+        # Left column - Quick Start
+        left_column = ctk.CTkFrame(columns_frame, fg_color="transparent")
+        left_column.pack(side="left", fill="both", expand=True, padx=(0, 20))
         
-        # Right column (Recent)
-        self.right_column = ctk.CTkFrame(self.columns_frame, fg_color="transparent")
-        self.right_column.pack(side="right", fill="both", expand=True, padx=(20, 0))
-        self.create_recent_section()
-
-    def create_title_section(self):
-        # Title container
-        title_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        title_frame.pack(fill="x")
-        
-        try:
-            # Load and display app logo
-            logo = ctk.CTkImage(
-                light_image=Image.open("media/images/logo.png"),
-                dark_image=Image.open("media/images/logo.png"),
-                size=(64, 64)
-            )
-            logo_label = ctk.CTkLabel(title_frame, image=logo, text="")
-            logo_label.pack()
-        except Exception as e:
-            print(f"Error loading logo: {e}")
-        
-        # Welcome text
-        title = ctk.CTkLabel(
-            title_frame,
-            text="Welcome to Minux",
-            font=ctk.CTkFont(size=24, weight="bold")
-        )
-        title.pack(pady=(10, 0))
-        
-        subtitle = ctk.CTkLabel(
-            title_frame,
-            text="Your Modern Development Environment",
-            font=ctk.CTkFont(size=14),
-            text_color="gray70"
-        )
-        subtitle.pack()
-
-    def create_quick_start_section(self):
-        # Section title
-        title = ctk.CTkLabel(
-            self.left_column,
+        quick_start_label = ctk.CTkLabel(
+            left_column,
             text="Quick Start",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#6F6F6F"
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#CCCCCC"
         )
-        title.pack(anchor="w", pady=(0, 10))
+        quick_start_label.pack(anchor="w", pady=(0, 10))
         
-        # Quick actions
-        actions = [
-            ("New File", "Create a new file", "file"),
-            ("Open Folder", "Open a folder to start working", "folder"),
-            ("Clone Git Repository", "Clone a repository from GitHub", "git"),
-            ("Open Terminal", "Open integrated terminal", "debug")
-        ]
+        # Quick Start buttons
+        self.create_action_button(left_column, "New File", "file.png", "Create a new file")
+        self.create_action_button(left_column, "Open Folder", "folder.png", "Open a folder")
+        self.create_action_button(left_column, "Clone Git Repository", "git.png", "Clone from Git")
+        self.create_action_button(left_column, "Open Terminal", "debug.png", "Open integrated terminal")
         
-        for action, desc, icon_name in actions:
-            self.create_action_button(self.left_column, action, desc, icon_name)
-            
-        # Additional section for learn
-        learn_title = ctk.CTkLabel(
-            self.left_column,
-            text="Learn",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#6F6F6F"
+        # Right column - Pending Tasks
+        right_column = ctk.CTkFrame(columns_frame, fg_color="transparent")
+        right_column.pack(side="right", fill="both", expand=True)
+        
+        pending_tasks_label = ctk.CTkLabel(
+            right_column,
+            text="Pending Tasks",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#CCCCCC"
         )
-        learn_title.pack(anchor="w", pady=(20, 10))
+        pending_tasks_label.pack(anchor="w", pady=(0, 10))
         
-        learn_actions = [
-            ("Get Started", "A quick tour of Minux features", "help"),
-            ("Documentation", "Read the official documentation", "notes"),
-            ("Tips and Tricks", "Learn useful tips and shortcuts", "search")
-        ]
+        # Create scrollable frame for tasks
+        tasks_frame = ctk.CTkScrollableFrame(right_column, fg_color="transparent", corner_radius=0)
+        tasks_frame.pack(fill="both", expand=True)
         
-        for action, desc, icon_name in learn_actions:
-            self.create_action_button(self.left_column, action, desc, icon_name)
+        # Load and display pending tasks
+        self.load_pending_tasks(tasks_frame)
 
-    def create_recent_section(self):
-        # Section title
-        title = ctk.CTkLabel(
-            self.right_column,
-            text="Recent",
+    def create_action_button(self, parent, title, icon_name, description):
+        """Create a button with icon and description"""
+        btn_frame = ctk.CTkFrame(parent, fg_color="#2a2d2e", corner_radius=5)
+        btn_frame.pack(fill="x", pady=5)
+        btn_frame.bind("<Button-1>", lambda e: self.callback(title))
+        
+        content_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+        content_frame.pack(fill="x", padx=10, pady=10)
+        
+        # Try to load icon
+        icon_path = os.path.join("media", "icons", icon_name)
+        if os.path.exists(icon_path):
+            try:
+                icon_image = Image.open(icon_path)
+                if icon_image.mode != 'RGBA':
+                    icon_image = icon_image.convert('RGBA')
+                icon_img = ctk.CTkImage(light_image=icon_image, dark_image=icon_image, size=(24, 24))
+                icon_label = ctk.CTkLabel(content_frame, image=icon_img, text="")
+                icon_label.pack(side="left", padx=(0, 10))
+            except Exception as e:
+                print(f"Error loading icon {icon_name}: {e}")
+        
+        text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        text_frame.pack(side="left", fill="x", expand=True)
+        
+        title_label = ctk.CTkLabel(
+            text_frame,
+            text=title,
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#6F6F6F"
-        )
-        title.pack(anchor="w", pady=(0, 10))
-        
-        # Recent files/folders frame with scroll
-        recent_frame = ctk.CTkScrollableFrame(
-            self.right_column,
-            fg_color="transparent",
-            corner_radius=0
-        )
-        recent_frame.pack(fill="both", expand=True)
-        
-        # Sample recent items (in real implementation, these would come from saved settings)
-        recent_items = [
-            ("~/Documents/Project1", "folder"),
-            ("~/Documents/notes.txt", "file"),
-            ("~/Projects/website", "folder"),
-            ("~/Downloads/script.py", "file")
-        ]
-        
-        for path, item_type in recent_items:
-            self.create_recent_item(recent_frame, path, item_type)
-
-    def create_action_button(self, parent, title, description, icon_name):
-        # Create container frame for the action
-        frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
-        frame.pack(fill="x", pady=(0, 5))
-        frame.pack_propagate(False)
-        
-        try:
-            # Try to load icon
-            icon = ctk.CTkImage(
-                light_image=Image.open(f"media/icons/{icon_name}.png"),
-                dark_image=Image.open(f"media/icons/{icon_name}.png"),
-                size=(16, 16)
-            )
-        except:
-            icon = None
-        
-        # Create button
-        btn = ctk.CTkButton(
-            frame,
-            text=f"{title}\n{description}",
-            font=ctk.CTkFont(size=13),
-            image=icon,
-            anchor="w",
-            fg_color="transparent",
-            hover_color="gray20",
-            compound="left",
-            height=40,
-            corner_radius=0,
-            command=lambda t=title: self.on_action(t)
-        )
-        btn.pack(fill="x")
-
-    def create_recent_item(self, parent, path, item_type):
-        try:
-            # Try to load icon
-            icon = ctk.CTkImage(
-                light_image=Image.open(f"media/icons/{item_type}.png"),
-                dark_image=Image.open(f"media/icons/{item_type}.png"),
-                size=(16, 16)
-            )
-        except:
-            icon = None
-        
-        # Create button for the recent item
-        btn = ctk.CTkButton(
-            parent,
-            text=os.path.basename(path),
-            font=ctk.CTkFont(size=13),
-            image=icon,
-            anchor="w",
-            fg_color="transparent",
-            hover_color="gray20",
-            compound="left",
-            height=30,
-            corner_radius=0,
-            command=lambda p=path: self.on_action(("open", p))
-        )
-        btn.pack(fill="x", pady=(0, 2))
-        
-        # Add path label
-        path_label = ctk.CTkLabel(
-            parent,
-            text=os.path.dirname(path),
-            font=ctk.CTkFont(size=11),
-            text_color="gray60",
+            text_color="#CCCCCC",
             anchor="w"
         )
-        path_label.pack(fill="x", padx=(30, 0), pady=(0, 5))
+        title_label.pack(fill="x")
+        
+        desc_label = ctk.CTkLabel(
+            text_frame,
+            text=description,
+            font=ctk.CTkFont(size=12),
+            text_color="#888888",
+            anchor="w"
+        )
+        desc_label.pack(fill="x")
+
+    def load_pending_tasks(self, container):
+        """Load and display pending tasks from SQLite database"""
+        try:
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'minux.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Get pending (not done) tasks, ordered by creation date
+            cursor.execute('''
+                SELECT task, created_date 
+                FROM todos 
+                WHERE done = 0 
+                ORDER BY created_date DESC 
+                LIMIT 5
+            ''')
+            
+            tasks = cursor.fetchall()
+            conn.close()
+            
+            if not tasks:
+                # Show message when no tasks are pending
+                no_tasks_label = ctk.CTkLabel(
+                    container,
+                    text="No pending tasks",
+                    font=ctk.CTkFont(size=12),
+                    text_color="#888888"
+                )
+                no_tasks_label.pack(pady=10)
+                return
+            
+            # Create a task button for each pending task
+            for task, created_date in tasks:
+                self.create_task_button(container, task, created_date)
+                
+        except Exception as e:
+            # Show error message if database access fails
+            error_label = ctk.CTkLabel(
+                container,
+                text=f"Could not load tasks: {str(e)}",
+                font=ctk.CTkFont(size=12),
+                text_color="#ff6b6b"
+            )
+            error_label.pack(pady=10)
+
+    def create_task_button(self, parent, task, created_date):
+        """Create a button for a pending task"""
+        btn_frame = ctk.CTkFrame(parent, fg_color="#2a2d2e", corner_radius=5)
+        btn_frame.pack(fill="x", pady=5)
+        btn_frame.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
+        
+        content_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+        content_frame.pack(fill="x", padx=10, pady=10)
+        
+        # Try to load todo icon
+        icon_path = os.path.join("media", "icons", "todo.png")
+        if os.path.exists(icon_path):
+            try:
+                icon_image = Image.open(icon_path)
+                if icon_image.mode != 'RGBA':
+                    icon_image = icon_image.convert('RGBA')
+                icon_img = ctk.CTkImage(light_image=icon_image, dark_image=icon_image, size=(24, 24))
+                icon_label = ctk.CTkLabel(content_frame, image=icon_img, text="")
+                icon_label.pack(side="left", padx=(0, 10))
+            except Exception as e:
+                print(f"Error loading todo icon: {e}")
+        
+        text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        text_frame.pack(side="left", fill="x", expand=True)
+        
+        # Show task text
+        task_label = ctk.CTkLabel(
+            text_frame,
+            text=task,
+            font=ctk.CTkFont(size=14),
+            text_color="#CCCCCC",
+            anchor="w"
+        )
+        task_label.pack(fill="x")
+        
+        # Show creation date
+        try:
+            date_obj = datetime.strptime(created_date, '%Y-%m-%d %H:%M:%S')
+            date_str = date_obj.strftime('%Y-%m-%d %H:%M')
+        except:
+            date_str = created_date
+            
+        date_label = ctk.CTkLabel(
+            text_frame,
+            text=f"Created: {date_str}",
+            font=ctk.CTkFont(size=12),
+            text_color="#888888",
+            anchor="w"
+        )
+        date_label.pack(fill="x")

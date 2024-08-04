@@ -23,6 +23,9 @@ from ui.tabs import TabView
 from ui.file_viewer import FileViewer
 from ui.widgets.todo import TodoWidget
 from ui.welcome import WelcomeScreen
+import sqlite3
+import threading
+from pathlib import Path
 
 
 # Set dark mode as default
@@ -99,6 +102,9 @@ class TerminalHandler(logging.Handler):
 class MinuxApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        
+        # Initialize database first
+        init_database()
         
         # Create notification frame first
         self.notification_frame = ctk.CTkFrame(self, fg_color="#FF4444", height=30, corner_radius=0)
@@ -192,8 +198,10 @@ class MinuxApp(ctk.CTk):
                     icon_image = icon_image.convert('RGBA')
                 # Create PhotoImage for the icon
                 icon_photo = ImageTk.PhotoImage(icon_image)
-                # Try both methods to set the icon
+                # Set the window icon
                 self.wm_iconphoto(True, icon_photo)
+                # Keep a reference to prevent garbage collection
+                self.icon_photo = icon_photo
                 # For Windows/WSL compatibility
                 if platform.system() == "Windows" or "microsoft" in platform.uname().release.lower():
                     # Create a temporary .ico file
@@ -613,23 +621,35 @@ class MinuxApp(ctk.CTk):
                 logger.warning("Cannot add empty task")
                 return
                 
-            if self.db is None:
-                self.show_error_notification("Database connection is not available. Tasks will not be saved.")
-                logger.warning("Database connection is not available. Tasks will not be saved.")
-                # Add task to local storage or display only
-                tree.insert("", tk.END, values=(task, "No", ""), iid=str(len(tree.get_children())))
-                task_entry.delete(0, "end")
-                return
-                
             try:
-                doc_ref = self.db.collection('todos').document()
-                doc_ref.set({
-                    'task': task,
-                    'done': False,
-                    'completed_date': '',
-                    'created_date': firestore.SERVER_TIMESTAMP
-                })
-                logger.info(f"Task added successfully: {task}")
+                # Add to SQLite
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO todos (task, done, created_date)
+                    VALUES (?, 0, CURRENT_TIMESTAMP)
+                ''', (task,))
+                task_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                
+                logger.info(f"Task added successfully to local database: {task}")
+                
+                # If Firebase is available, sync to cloud
+                if self.db is not None:
+                    try:
+                        doc_ref = self.db.collection('todos').document()
+                        doc_ref.set({
+                            'task': task,
+                            'done': False,
+                            'completed_date': '',
+                            'created_date': firestore.SERVER_TIMESTAMP,
+                            'local_id': task_id
+                        })
+                        logger.info(f"Task synced to Firebase: {task}")
+                    except Exception as e:
+                        logger.warning(f"Failed to sync task to Firebase: {str(e)}")
+                
                 load_tasks()
                 task_entry.delete(0, "end")
             except Exception as e:
@@ -652,28 +672,47 @@ class MinuxApp(ctk.CTk):
 
         def toggle_done_status(item_id):
             try:
-                if self.db is None:
-                    # Handle local-only mode
-                    item_values = tree.item(item_id)['values']
-                    new_status = "Yes" if item_values[1] == "No" else "No"
-                    completed_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M') if new_status == "Yes" else ""
-                    tree.item(item_id, values=(item_values[0], new_status, completed_date))
-                    logger.info(f"Task status updated (local): {item_values[0]} -> {new_status}")
-                    return
-                    
-                task_info = self.db.collection('todos').document(item_id).get().to_dict()
-                if task_info:
-                    new_status = not task_info.get('done', False)
-                    update_data = {'done': new_status}
-                    if new_status:
-                        update_data['completed_date'] = firestore.SERVER_TIMESTAMP
-                    else:
-                        update_data['completed_date'] = ''
-                    self.db.collection('todos').document(item_id).update(update_data)
-                    logging.info(f"Task status updated: {task_info.get('task', 'Unknown task')} -> {'Done' if new_status else 'Not Done'}")
-                    load_tasks()
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                # Get current status
+                cursor.execute('SELECT done FROM todos WHERE id = ?', (item_id,))
+                current_status = cursor.fetchone()[0]
+                
+                # Toggle status
+                new_status = not bool(current_status)
+                completed_date = 'CURRENT_TIMESTAMP' if new_status else 'NULL'
+                
+                cursor.execute(f'''
+                    UPDATE todos 
+                    SET done = ?, completed_date = {completed_date}
+                    WHERE id = ?
+                ''', (new_status, item_id))
+                
+                conn.commit()
+                conn.close()
+                
+                logger.info(f"Task status updated in local database: {item_id} -> {new_status}")
+                
+                # Sync with Firebase if available
+                if self.db is not None:
+                    try:
+                        # Find Firebase document with matching local_id
+                        docs = self.db.collection('todos').where('local_id', '==', item_id).limit(1).get()
+                        for doc in docs:
+                            doc.reference.update({
+                                'done': new_status,
+                                'completed_date': firestore.SERVER_TIMESTAMP if new_status else ''
+                            })
+                        logger.info(f"Task status synced to Firebase: {item_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to sync task status to Firebase: {str(e)}")
+                
+                load_tasks()
             except Exception as e:
-                logging.error(f"Failed to update task status: {str(e)}")
+                error_msg = f"Failed to update task status: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
 
         def edit_task():
             selected_item = tree.selection()
@@ -682,15 +721,15 @@ class MinuxApp(ctk.CTk):
             
             item_id = selected_item[0]
             
-            if self.db is None:
-                # Handle local-only mode
-                item_values = tree.item(item_id)['values']
-                current_task = item_values[0]
-            else:
-                task_info = self.db.collection('todos').document(item_id).get().to_dict()
-                if not task_info:
-                    return
-                current_task = task_info['task']
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('SELECT task FROM todos WHERE id = ?', (item_id,))
+                current_task = cursor.fetchone()[0]
+                conn.close()
+            except Exception as e:
+                logger.error(f"Failed to fetch task for editing: {str(e)}")
+                return
 
             edit_window = ctk.CTkToplevel(parent_frame)
             edit_window.title("Edit Task")
@@ -711,17 +750,31 @@ class MinuxApp(ctk.CTk):
             def save_edit():
                 new_task = edit_var.get().strip()
                 if new_task:
-                    if self.db is None:
-                        # Handle local-only mode
-                        item_values = tree.item(item_id)['values']
-                        tree.item(item_id, values=(new_task, item_values[1], item_values[2]))
-                        logger.info(f"Task edited (local): {current_task} -> {new_task}")
-                    else:
-                        self.db.collection('todos').document(item_id).update({
-                            'task': new_task
-                        })
+                    try:
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.cursor()
+                        cursor.execute('UPDATE todos SET task = ? WHERE id = ?', (new_task, item_id))
+                        conn.commit()
+                        conn.close()
+                        
+                        logger.info(f"Task edited in local database: {current_task} -> {new_task}")
+                        
+                        # Sync with Firebase if available
+                        if self.db is not None:
+                            try:
+                                docs = self.db.collection('todos').where('local_id', '==', item_id).limit(1).get()
+                                for doc in docs:
+                                    doc.reference.update({'task': new_task})
+                                logger.info(f"Task edit synced to Firebase: {item_id}")
+                            except Exception as e:
+                                logger.warning(f"Failed to sync task edit to Firebase: {str(e)}")
+                        
                         load_tasks()
-                    edit_window.destroy()
+                        edit_window.destroy()
+                    except Exception as e:
+                        error_msg = f"Failed to edit task: {str(e)}"
+                        self.show_error_notification(error_msg)
+                        logger.error(error_msg)
 
             save_btn = ctk.CTkButton(
                 edit_window,
@@ -736,42 +789,55 @@ class MinuxApp(ctk.CTk):
 
         def delete_task():
             selected_item = tree.selection()
-            if selected_item:
-                try:
-                    item_id = selected_item[0]
+            if not selected_item:
+                return
+                
+            item_id = selected_item[0]
+            
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('SELECT task FROM todos WHERE id = ?', (item_id,))
+                task_name = cursor.fetchone()[0]
+                conn.close()
+                
+                response = messagebox.askyesno("Delete Task", "Are you sure you want to delete this task?")
+                if response:
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute('DELETE FROM todos WHERE id = ?', (item_id,))
+                    conn.commit()
+                    conn.close()
                     
-                    if self.db is None:
-                        # Handle local-only mode
-                        item_values = tree.item(item_id)['values']
-                        task_name = item_values[0]
-                    else:
-                        task_info = self.db.collection('todos').document(item_id).get().to_dict()
-                        task_name = task_info.get('task', 'Unknown task') if task_info else 'Unknown task'
+                    logger.info(f"Task deleted from local database: {task_name}")
                     
-                    response = messagebox.askyesno("Delete Task", "Are you sure you want to delete this task?")
-                    if response:
-                        if self.db is None:
-                            # Handle local-only mode
-                            tree.delete(item_id)
-                            logger.info(f"Task deleted (local): {task_name}")
-                        else:
-                            self.db.collection('todos').document(item_id).delete()
-                            logger.info(f"Task deleted: {task_name}")
-                            load_tasks()
-                except Exception as e:
-                    logging.error(f"Failed to delete task: {str(e)}")
+                    # Sync with Firebase if available
+                    if self.db is not None:
+                        try:
+                            docs = self.db.collection('todos').where('local_id', '==', item_id).limit(1).get()
+                            for doc in docs:
+                                doc.reference.delete()
+                            logger.info(f"Task deletion synced to Firebase: {item_id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to sync task deletion to Firebase: {str(e)}")
+                    
+                    load_tasks()
+            except Exception as e:
+                error_msg = f"Failed to delete task: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
 
         def toggle_done(event):
             column = tree.identify_column(event.x)
             item_id = tree.identify_row(event.y)
             if column == "#2" and item_id:  # Done column
-                toggle_done_status(item_id)
+                toggle_done_status(int(item_id))
 
         tree.bind("<Button-1>", toggle_done)
 
         # Context menu
         context_menu = tk.Menu(tree, tearoff=0)
-        context_menu.add_command(label="✓ Mark as Done", command=lambda: toggle_done_status(tree.selection()[0]) if tree.selection() else None)
+        context_menu.add_command(label="✓ Mark as Done", command=lambda: toggle_done_status(int(tree.selection()[0])) if tree.selection() else None)
         context_menu.add_command(label="✎ Edit Task", command=edit_task)
         context_menu.add_separator()
         context_menu.add_command(label="🗑 Delete Task", command=delete_task)
@@ -792,71 +858,51 @@ class MinuxApp(ctk.CTk):
         def sort_tasks(column):
             sort_order[column] = not sort_order[column]  # Toggle sort order
             
-            if self.db is None:
-                # Handle local-only mode
-                tasks = []
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                order = "ASC" if sort_order[column] else "DESC"
+                if column == "task":
+                    cursor.execute(f'SELECT * FROM todos ORDER BY task {order}')
+                elif column == "done":
+                    cursor.execute(f'SELECT * FROM todos ORDER BY done {order}')
+                elif column == "completed_date":
+                    cursor.execute(f'SELECT * FROM todos ORDER BY completed_date {order} NULLS LAST')
+                
+                tasks = cursor.fetchall()
+                conn.close()
+                
                 for item in tree.get_children():
-                    values = tree.item(item)['values']
-                    tasks.append({
-                        'id': item,
-                        'task': values[0],
-                        'done': values[1] == "Yes",
-                        'completed_date': values[2]
-                    })
-            else:
-                docs = self.db.collection('todos').stream()
-                tasks = []
-                for doc in docs:
-                    data = doc.to_dict()
-                    data['id'] = doc.id
-                    tasks.append(data)
-            
-            reverse = not sort_order[column]
-            if column == "task":
-                tasks.sort(key=lambda x: x['task'].lower(), reverse=reverse)
-            elif column == "done":
-                tasks.sort(key=lambda x: x.get('done', False), reverse=reverse)
-            elif column == "completed_date":
-                tasks.sort(key=lambda x: x.get('completed_date', ''), reverse=reverse)
-            
-            for item in tree.get_children():
-                tree.delete(item)
-            
-            for task in tasks:
-                done = 'Yes' if task.get('done') else 'No'
-                completed_date = task.get('completed_date', '')
-                if completed_date and isinstance(completed_date, datetime.datetime):
-                    completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
-                tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
+                    tree.delete(item)
+                
+                for task in tasks:
+                    done = 'Yes' if task[2] else 'No'
+                    completed_date = task[4] if task[4] else ''
+                    tree.insert("", tk.END, values=(task[1], done, completed_date), iid=str(task[0]))
+                
+            except Exception as e:
+                error_msg = f"Failed to sort tasks: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
 
         def load_tasks():
-            if self.db is None:
-                # In local-only mode, we don't need to reload tasks as they're already in the tree
-                logger.info("Skipping task reload in local-only mode")
-                return
-                
             try:
                 for item in tree.get_children():
                     tree.delete(item)
-                    
-                docs = self.db.collection('todos').stream()
-                tasks = []
-                for doc in docs:
-                    data = doc.to_dict()
-                    data['id'] = doc.id
-                    tasks.append(data)
                 
-                # Sort by created date by default
-                tasks.sort(key=lambda x: x.get('created_date', datetime.datetime.min), reverse=True)
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM todos ORDER BY created_date DESC')
+                tasks = cursor.fetchall()
+                conn.close()
                 
                 for task in tasks:
-                    done = 'Yes' if task.get('done') else 'No'
-                    completed_date = task.get('completed_date', '')
-                    if completed_date and isinstance(completed_date, datetime.datetime):
-                        completed_date = completed_date.strftime('%Y-%m-%d %H:%M')
-                    tree.insert("", tk.END, values=(task['task'], done, completed_date), iid=task['id'])
+                    done = 'Yes' if task[2] else 'No'
+                    completed_date = task[4] if task[4] else ''
+                    tree.insert("", tk.END, values=(task[1], done, completed_date), iid=str(task[0]))
                 
-                logger.info(f"Tasks loaded successfully. Total tasks: {len(tasks)}")
+                logger.info(f"Tasks loaded successfully from local database. Total tasks: {len(tasks)}")
             except Exception as e:
                 error_msg = f"Failed to load tasks: {str(e)}"
                 self.show_error_notification(error_msg)
@@ -1758,6 +1804,9 @@ class MinuxApp(ctk.CTk):
                     self.open_folder(path)
                 else:
                     self.open_file(path)
+            elif action_type == "open_todo":
+                # Show the TODO list and highlight the selected task
+                self.toggle_todo()
         else:
             if action == "New File":
                 self.new_file()
@@ -1961,6 +2010,36 @@ class MinuxApp(ctk.CTk):
                 )
                 entry.insert(0, setting["default"])
                 entry.pack(fill="x", pady=(5, 0))
+
+# Configure database
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'minux.db')
+
+def init_database():
+    """Initialize SQLite database and create necessary tables"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Create todos table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS todos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task TEXT NOT NULL,
+                done BOOLEAN DEFAULT 0,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_date TIMESTAMP,
+                synced BOOLEAN DEFAULT 0
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        logger.info(f"Database initialized successfully at {DB_PATH}")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {str(e)}")
+
+# Initialize database
+init_database()
 
 if __name__ == "__main__":
     try:
