@@ -422,8 +422,14 @@ class MinuxApp(ctk.CTk):
 
     def show_todo_content(self):
         """Show the main TODO content area"""
-        todo_widget = TodoWidget(self.tab_view)
-        self.tab_view.add_tab("TODO", todo_widget)
+        # Create a frame for the TODO content
+        todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
+        
+        # Add TODO widget content
+        self.setup_todo_widget(todo_frame)
+        
+        # Add the frame to a new tab
+        self.tab_view.add_tab("TODO", todo_frame)
 
     def show_todo_category(self, category):
         """Show tasks for the selected category"""
@@ -623,8 +629,25 @@ class MinuxApp(ctk.CTk):
                 
             try:
                 # Add to SQLite
+                logger.info(f"Attempting to add task to SQLite: {task}")
+                logger.debug(f"Database path: {DB_PATH}")
+                
+                if not os.path.exists(DB_PATH):
+                    logger.error(f"Database file does not exist at {DB_PATH}")
+                    self.show_error_notification("Database file not found")
+                    return
+                    
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
+                
+                # Verify table exists
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='todos'")
+                if not cursor.fetchone():
+                    logger.error("todos table does not exist in database")
+                    self.show_error_notification("Database table not found")
+                    conn.close()
+                    return
+                
                 cursor.execute('''
                     INSERT INTO todos (task, done, created_date)
                     VALUES (?, 0, CURRENT_TIMESTAMP)
@@ -633,7 +656,7 @@ class MinuxApp(ctk.CTk):
                 conn.commit()
                 conn.close()
                 
-                logger.info(f"Task added successfully to local database: {task}")
+                logger.info(f"Task added successfully to local database: {task} (ID: {task_id})")
                 
                 # If Firebase is available, sync to cloud
                 if self.db is not None:
@@ -2017,6 +2040,15 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'minux.db')
 def init_database():
     """Initialize SQLite database and create necessary tables"""
     try:
+        logger.info(f"Initializing database at {DB_PATH}")
+        logger.debug(f"Current working directory: {os.getcwd()}")
+        
+        # Create database directory if it doesn't exist
+        db_dir = os.path.dirname(DB_PATH)
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+            logger.info(f"Created database directory: {db_dir}")
+        
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
@@ -2034,9 +2066,17 @@ def init_database():
         
         conn.commit()
         conn.close()
-        logger.info(f"Database initialized successfully at {DB_PATH}")
+        
+        # Verify the database was created
+        if os.path.exists(DB_PATH):
+            logger.info(f"Database initialized successfully at {DB_PATH}")
+            logger.info(f"Database file size: {os.path.getsize(DB_PATH)} bytes")
+        else:
+            logger.error(f"Database file was not created at {DB_PATH}")
+            
     except Exception as e:
         logger.error(f"Failed to initialize database: {str(e)}")
+        logger.error(f"Stack trace: ", exc_info=True)
 
 # Initialize database
 init_database()
