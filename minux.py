@@ -1763,6 +1763,8 @@ class MinuxApp(ctk.CTk):
         view_menu.add_checkbutton(label="Source Control", command=self.toggle_source_control)
         view_menu.add_checkbutton(label="Run and Debug", command=self.toggle_debug)
         view_menu.add_checkbutton(label="Extensions", command=self.toggle_extensions)
+        view_menu.add_separator()
+        view_menu.add_command(label="Show Welcome Page", command=self.show_welcome_screen)
 
         # Run menu
         run_menu = tk.Menu(menubar, tearoff=0)
@@ -1830,6 +1832,10 @@ class MinuxApp(ctk.CTk):
             elif action_type == "open_todo":
                 # Show the TODO list and highlight the selected task
                 self.toggle_todo()
+                # Create a new TODO tab with the task highlighted
+                todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
+                self.setup_todo_widget(todo_frame)
+                self.tab_view.add_tab("TODO", todo_frame)
         else:
             if action == "New File":
                 self.new_file()
