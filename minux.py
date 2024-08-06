@@ -422,13 +422,9 @@ class MinuxApp(ctk.CTk):
 
     def show_todo_content(self):
         """Show the main TODO content area"""
-        # Create a frame for the TODO content
+        # Create a new TODO tab
         todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
-        
-        # Add TODO widget content
         self.setup_todo_widget(todo_frame)
-        
-        # Add the frame to a new tab
         self.tab_view.add_tab("TODO", todo_frame)
 
     def show_todo_category(self, category):
@@ -536,7 +532,7 @@ class MinuxApp(ctk.CTk):
         )
         self.log_listener.start()
 
-    def setup_todo_widget(self, parent_frame):
+    def setup_todo_widget(self, parent_frame, selected_task=None):
         """Setup the TODO widget content"""
         # Add a title and instructions
         header_frame = ctk.CTkFrame(parent_frame, fg_color="transparent", corner_radius=0)
@@ -619,6 +615,42 @@ class MinuxApp(ctk.CTk):
         scrollbar.pack(side="right", fill="y")
         tree.configure(yscrollcommand=scrollbar.set)
         tree.pack(expand=True, fill="both")
+
+        def load_tasks():
+            try:
+                for item in tree.get_children():
+                    tree.delete(item)
+                
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM todos ORDER BY created_date DESC')
+                tasks = cursor.fetchall()
+                conn.close()
+                
+                selected_item_id = None
+                for task_data in tasks:
+                    task_id = str(task_data[0])
+                    task_text = task_data[1]
+                    done = 'Yes' if task_data[2] else 'No'
+                    completed_date = task_data[4] if task_data[4] else ''
+                    
+                    tree.insert("", tk.END, values=(task_text, done, completed_date), iid=task_id)
+                    
+                    # If this is the selected task, store its ID
+                    if selected_task and task_text == selected_task:
+                        selected_item_id = task_id
+                
+                # If we found the selected task, select and scroll to it
+                if selected_item_id:
+                    tree.selection_set(selected_item_id)
+                    tree.see(selected_item_id)
+                    tree.focus(selected_item_id)  # Also set keyboard focus
+                
+                logger.info(f"Tasks loaded successfully from local database. Total tasks: {len(tasks)}")
+            except Exception as e:
+                error_msg = f"Failed to load tasks: {str(e)}"
+                self.show_error_notification(error_msg)
+                logger.error(error_msg)
 
         def add_task(event=None):
             task = task_var.get().strip()
@@ -906,28 +938,6 @@ class MinuxApp(ctk.CTk):
                 
             except Exception as e:
                 error_msg = f"Failed to sort tasks: {str(e)}"
-                self.show_error_notification(error_msg)
-                logger.error(error_msg)
-
-        def load_tasks():
-            try:
-                for item in tree.get_children():
-                    tree.delete(item)
-                
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM todos ORDER BY created_date DESC')
-                tasks = cursor.fetchall()
-                conn.close()
-                
-                for task in tasks:
-                    done = 'Yes' if task[2] else 'No'
-                    completed_date = task[4] if task[4] else ''
-                    tree.insert("", tk.END, values=(task[1], done, completed_date), iid=str(task[0]))
-                
-                logger.info(f"Tasks loaded successfully from local database. Total tasks: {len(tasks)}")
-            except Exception as e:
-                error_msg = f"Failed to load tasks: {str(e)}"
                 self.show_error_notification(error_msg)
                 logger.error(error_msg)
 
@@ -1823,18 +1833,19 @@ class MinuxApp(ctk.CTk):
     def handle_welcome_action(self, action):
         """Handle actions from the welcome screen"""
         if isinstance(action, tuple):
-            action_type, path = action
+            action_type, task = action
             if action_type == "open":
-                if os.path.isdir(path):
-                    self.open_folder(path)
+                if os.path.isdir(task):
+                    self.open_folder(task)
                 else:
-                    self.open_file(path)
+                    self.open_file(task)
             elif action_type == "open_todo":
                 # Show the TODO list and highlight the selected task
                 self.toggle_todo()
-                # Create a new TODO tab with the task highlighted
+                
+                # Create new TODO tab
                 todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
-                self.setup_todo_widget(todo_frame)
+                self.setup_todo_widget(todo_frame, selected_task=task)
                 self.tab_view.add_tab("TODO", todo_frame)
         else:
             if action == "New File":

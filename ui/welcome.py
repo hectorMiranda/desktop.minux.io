@@ -182,10 +182,15 @@ class WelcomeScreen(ctk.CTkFrame):
         """Create a button for a pending task"""
         btn_frame = ctk.CTkFrame(parent, fg_color="#2a2d2e", corner_radius=5)
         btn_frame.pack(fill="x", pady=5)
+        
+        # Make the entire frame clickable
         btn_frame.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
+        btn_frame.bind("<Enter>", lambda e: btn_frame.configure(fg_color="#404040"))
+        btn_frame.bind("<Leave>", lambda e: btn_frame.configure(fg_color="#2a2d2e"))
         
         content_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
         content_frame.pack(fill="x", padx=10, pady=10)
+        content_frame.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
         
         # Try to load todo icon
         icon_path = os.path.join("media", "icons", "todo.png")
@@ -197,11 +202,14 @@ class WelcomeScreen(ctk.CTkFrame):
                 icon_img = ctk.CTkImage(light_image=icon_image, dark_image=icon_image, size=(24, 24))
                 icon_label = ctk.CTkLabel(content_frame, image=icon_img, text="")
                 icon_label.pack(side="left", padx=(0, 10))
+                # Make icon label clickable too
+                icon_label.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
             except Exception as e:
                 print(f"Error loading todo icon: {e}")
         
         text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
         text_frame.pack(side="left", fill="x", expand=True)
+        text_frame.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
         
         # Show task text
         task_label = ctk.CTkLabel(
@@ -212,6 +220,7 @@ class WelcomeScreen(ctk.CTkFrame):
             anchor="w"
         )
         task_label.pack(fill="x")
+        task_label.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
         
         # Show creation date
         try:
@@ -228,3 +237,9 @@ class WelcomeScreen(ctk.CTkFrame):
             anchor="w"
         )
         date_label.pack(fill="x")
+        date_label.bind("<Button-1>", lambda e: self.callback(("open_todo", task)))
+        
+        # Change cursor to hand when hovering over any part of the button
+        for widget in [btn_frame, content_frame, text_frame, task_label, date_label]:
+            widget.bind("<Enter>", lambda e: widget.configure(cursor="hand2"))
+            widget.bind("<Leave>", lambda e: widget.configure(cursor=""))
