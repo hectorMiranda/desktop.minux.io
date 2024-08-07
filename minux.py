@@ -189,33 +189,12 @@ class MinuxApp(ctk.CTk):
         
         # Set window icon
         try:
-            icon_path = os.path.join("media", "images", "logo.png")
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "images", "logo.png")
             if os.path.exists(icon_path):
-                # Load and convert image
-                icon_image = Image.open(icon_path)
-                # Convert to RGBA if not already
-                if icon_image.mode != 'RGBA':
-                    icon_image = icon_image.convert('RGBA')
-                # Create PhotoImage for the icon
-                icon_photo = ImageTk.PhotoImage(icon_image)
-                # Set the window icon
-                self.wm_iconphoto(True, icon_photo)
-                # Keep a reference to prevent garbage collection
-                self.icon_photo = icon_photo
-                # For Windows/WSL compatibility
-                if platform.system() == "Windows" or "microsoft" in platform.uname().release.lower():
-                    # Create a temporary .ico file
-                    ico_path = os.path.join("media", "images", "temp_icon.ico")
-                    icon_image.save(ico_path, format='ICO', sizes=[(32, 32)])
-                    self.iconbitmap(ico_path)
-                    # Clean up temporary file
-                    try:
-                        os.remove(ico_path)
-                    except:
-                        pass
-                # Keep a reference to prevent garbage collection
-                self.icon_photo = icon_photo
-                logger.info("Application icon set successfully")
+                icon_img = Image.open(icon_path)
+                if icon_img.mode != 'RGBA':
+                    icon_img = icon_img.convert('RGBA')
+                self.iconphoto(True, ImageTk.PhotoImage(icon_img))
             else:
                 logger.warning("Icon file not found at: " + icon_path)
         except Exception as e:
@@ -235,9 +214,23 @@ class MinuxApp(ctk.CTk):
         self.sidebar.grid(row=0, column=1, sticky="nsew")
         self.sidebar.grid_remove()  # Hidden by default
         
-        # Create tab view
-        self.tab_view = TabView(self)
+        # Create tab view with VSCode-like styling
+        self.tab_view = ctk.CTkTabview(
+            self,
+            fg_color="#1e1e1e",  # Dark background like VSCode
+            segmented_button_fg_color="#252526",  # Tab background
+            segmented_button_selected_color="#1e1e1e",  # Selected tab
+            segmented_button_selected_hover_color="#1e1e1e",
+            segmented_button_unselected_color="#2d2d2d",  # Unselected tabs
+            segmented_button_unselected_hover_color="#2d2d2d",
+            text_color="#ffffff",  # Tab text color
+            corner_radius=0  # Square corners like VSCode
+        )
         self.tab_view.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
+        
+        # Create initial "Welcome" tab
+        self.tab_view.add("Welcome")
+        self.tab_view.set("Welcome")
         
         # Show welcome screen
         self.show_welcome_screen()
@@ -422,10 +415,25 @@ class MinuxApp(ctk.CTk):
 
     def show_todo_content(self):
         """Show the main TODO content area"""
-        # Create a new TODO tab
-        todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
+        # Get or create TODO tab
+        todo_frame = None
+        for name in self.tab_view._tab_dict:
+            if name == "TODO":
+                todo_frame = self.tab_view.tab("TODO")
+                break
+        
+        if todo_frame is None:
+            todo_frame = self.tab_view.add("TODO")
+            
+        # Clear any existing content
+        for widget in todo_frame.winfo_children():
+            widget.destroy()
+            
+        # Setup the TODO widget
         self.setup_todo_widget(todo_frame)
-        self.tab_view.add_tab("TODO", todo_frame)
+        
+        # Switch to TODO tab
+        self.tab_view.set("TODO")
 
     def show_todo_category(self, category):
         """Show tasks for the selected category"""
@@ -1543,17 +1551,22 @@ class MinuxApp(ctk.CTk):
     def show_music_theory_content(self):
         """Show the main music theory content area"""
         # Create a new tab for music theory if it doesn't exist
-        self.music_theory_tab = ctk.CTkFrame(self.tab_view)
-        self.tab_view.add_tab("Music Theory", self.music_theory_tab)
+        if "Music Theory" not in self.tab_view._tab_dict:
+            self.music_theory_tab = self.tab_view.add("Music Theory")
             
-        # Add welcome content
-        welcome_label = ctk.CTkLabel(
-            self.music_theory_tab,
-            text="Welcome to Music Theory\nSelect a scale from the sidebar to view details",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#FFFFFF"
-        )
-        welcome_label.pack(pady=20)
+            # Add welcome content
+            welcome_label = ctk.CTkLabel(
+                self.music_theory_tab,
+                text="Welcome to Music Theory\nSelect a scale from the sidebar to view details",
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color="#FFFFFF"
+            )
+            welcome_label.pack(pady=20)
+        else:
+            self.music_theory_tab = self.tab_view.tab("Music Theory")
+            
+        # Switch to the Music Theory tab
+        self.tab_view.set("Music Theory")
 
     def show_scale_details(self, scale_name):
         """Show the details of the selected scale"""
@@ -1715,17 +1728,36 @@ class MinuxApp(ctk.CTk):
         return notes.get(scale_name, ["C", "D", "E", "F", "G", "A", "B"])  # Default to C major if scale not found
 
     def on_file_select(self, file_path):
-        # Check if file is already open in a tab
-        if file_path in self.tab_view.tabs:
-            self.tab_view.select_tab(file_path)
+        """Handle file selection"""
+        file_name = os.path.basename(file_path)
+        
+        # Check if tab already exists
+        if file_name in self.tab_view._tab_dict:
+            # Switch to existing tab
+            self.tab_view.set(file_name)
+            return
+            
+        # Add new tab for the file
+        file_frame = self.tab_view.add(file_name)
+        
+        # Add text editor
+        text_editor = ctk.CTkTextbox(file_frame, wrap="none")
+        text_editor.grid(row=0, column=0, sticky="nsew")
+        
+        # Configure grid
+        file_frame.grid_rowconfigure(0, weight=1)
+        file_frame.grid_columnconfigure(0, weight=1)
+        
+        try:
+            with open(file_path, 'r') as file:
+                content = file.read()
+                text_editor.insert("1.0", content)
+        except Exception as e:
+            self.show_error_notification(f"Error opening file: {str(e)}")
             return
         
-        # Create new file viewer
-        viewer = FileViewer(self.tab_view)
-        viewer.load_file(file_path)
-        
-        # Add new tab
-        self.tab_view.add_tab(file_path, viewer)
+        # Switch to the new tab
+        self.tab_view.set(file_name)
 
     def create_menu(self):
         """Create the main menu bar"""
@@ -1826,10 +1858,28 @@ class MinuxApp(ctk.CTk):
         self.show_about = lambda: print("Show About")
 
     def show_welcome_screen(self):
-        """Show the welcome screen in the main content area"""
-        welcome = WelcomeScreen(self.tab_view, self.handle_welcome_action)
-        self.tab_view.add_tab("Welcome", welcome)
-    
+        """Show the welcome screen"""
+        # Get or create Welcome tab
+        welcome_frame = None
+        for name in self.tab_view._tab_dict:
+            if name == "Welcome":
+                welcome_frame = self.tab_view.tab("Welcome")
+                break
+        
+        if welcome_frame is None:
+            welcome_frame = self.tab_view.add("Welcome")
+            
+        # Clear any existing content
+        for widget in welcome_frame.winfo_children():
+            widget.destroy()
+            
+        # Create and pack the welcome screen
+        welcome_screen = WelcomeScreen(welcome_frame, self.handle_welcome_action)
+        welcome_screen.pack(fill="both", expand=True)
+        
+        # Switch to Welcome tab
+        self.tab_view.set("Welcome")
+
     def handle_welcome_action(self, action):
         """Handle actions from the welcome screen"""
         if isinstance(action, tuple):
@@ -1842,11 +1892,13 @@ class MinuxApp(ctk.CTk):
             elif action_type == "open_todo":
                 # Show the TODO list and highlight the selected task
                 self.toggle_todo()
+                self.show_todo_content()
                 
-                # Create new TODO tab
-                todo_frame = ctk.CTkFrame(self.tab_view, fg_color="#1E1E1E", corner_radius=0)
+                # Get the TODO tab frame and update it
+                todo_frame = self.tab_view.tab("TODO")
+                for widget in todo_frame.winfo_children():
+                    widget.destroy()
                 self.setup_todo_widget(todo_frame, selected_task=task)
-                self.tab_view.add_tab("TODO", todo_frame)
         else:
             if action == "New File":
                 self.new_file()
@@ -1862,7 +1914,7 @@ class MinuxApp(ctk.CTk):
                 self.show_documentation()
             elif action == "Tips and Tricks":
                 self.show_tips()
-    
+
     def show_getting_started(self):
         """Show getting started guide"""
         # TODO: Implement getting started guide
@@ -1881,57 +1933,58 @@ class MinuxApp(ctk.CTk):
     def show_preferences(self):
         """Show the settings/preferences tab"""
         # Create settings frame if it doesn't exist
-        settings_frame = ctk.CTkFrame(self.tab_view, fg_color="#1e1e1e")
-        
-        # Create two-column layout
-        left_column = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        left_column.pack(side="left", fill="y", padx=(20, 10), pady=20)
-        
-        right_column = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent")
-        right_column.pack(side="left", fill="both", expand=True, padx=(10, 20), pady=20)
-        
-        # Add search bar at the top
-        search_frame = ctk.CTkFrame(left_column, fg_color="transparent")
-        search_frame.pack(fill="x", pady=(0, 10))
-        
-        search_entry = ctk.CTkEntry(
-            search_frame,
-            placeholder_text="Search settings",
-            height=32,
-            corner_radius=0
-        )
-        search_entry.pack(fill="x")
-        
-        # Add settings categories
-        categories = [
-            "Commonly Used",
-            "Text Editor",
-            "Workbench",
-            "Window",
-            "Features",
-            "Application",
-            "Security",
-            "Extensions"
-        ]
-        
-        for category in categories:
-            btn = ctk.CTkButton(
-                left_column,
-                text=category,
-                fg_color="transparent",
-                hover_color="#2a2d2e",
-                anchor="w",
+        if "Settings" not in self.tab_view._tab_dict:
+            settings_frame = self.tab_view.add("Settings")
+            
+            # Create two-column layout
+            left_column = ctk.CTkFrame(settings_frame, fg_color="transparent")
+            left_column.pack(side="left", fill="y", padx=(20, 10), pady=20)
+            
+            right_column = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent")
+            right_column.pack(side="left", fill="both", expand=True, padx=(10, 20), pady=20)
+            
+            # Add search bar at the top
+            search_frame = ctk.CTkFrame(left_column, fg_color="transparent")
+            search_frame.pack(fill="x", pady=(0, 10))
+            
+            search_entry = ctk.CTkEntry(
+                search_frame,
+                placeholder_text="Search settings",
                 height=32,
-                corner_radius=0,
-                command=lambda c=category: self.show_settings_category(c, right_column)
+                corner_radius=0
             )
-            btn.pack(fill="x", pady=1)
+            search_entry.pack(fill="x")
+            
+            # Add settings categories
+            categories = [
+                "Commonly Used",
+                "Text Editor",
+                "Workbench",
+                "Window",
+                "Features",
+                "Application",
+                "Security",
+                "Extensions"
+            ]
+            
+            for category in categories:
+                btn = ctk.CTkButton(
+                    left_column,
+                    text=category,
+                    fg_color="transparent",
+                    hover_color="#2a2d2e",
+                    anchor="w",
+                    height=32,
+                    corner_radius=0,
+                    command=lambda c=category: self.show_settings_category(c, right_column)
+                )
+                btn.pack(fill="x", pady=1)
+            
+            # Show initial category (Commonly Used)
+            self.show_settings_category("Commonly Used", right_column)
         
-        # Show initial category (Commonly Used)
-        self.show_settings_category("Commonly Used", right_column)
-        
-        # Add the settings to the tab view
-        self.tab_view.add_tab("Settings", settings_frame)
+        # Switch to the Settings tab
+        self.tab_view.set("Settings")
 
     def show_settings_category(self, category, container):
         """Show settings for the selected category"""
