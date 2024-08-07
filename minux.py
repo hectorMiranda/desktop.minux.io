@@ -99,6 +99,88 @@ class TerminalHandler(logging.Handler):
         timestamp = datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
         return f"{timestamp} - {record.levelname} - {record.getMessage()}"
 
+class VSCodeTabview(ctk.CTkTabview):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        
+        # VSCode-like colors
+        self.configure(
+            fg_color="#1e1e1e",  # VSCode dark theme background
+            segmented_button_fg_color="#2d2d2d",  # Tab background
+            segmented_button_selected_color="#1e1e1e",  # Active tab background
+            segmented_button_selected_hover_color="#1e1e1e",
+            segmented_button_unselected_color="#2d2d2d",
+            segmented_button_unselected_hover_color="#2d2d2d"
+        )
+        
+        self._close_buttons = {}  # Store close buttons for each tab
+        
+    def add(self, name: str) -> ctk.CTkFrame:
+        if name in self._tab_dict:
+            return self._tab_dict[name]
+            
+        # Create the tab and get its button
+        tab = super().add(name)
+        tab_button = self._segmented_button._buttons_dict[name]  # This is the correct way to access the button
+        
+        # Create a close button that only shows on hover
+        close_button = ctk.CTkButton(
+            tab_button,
+            text="×",
+            width=20,
+            height=20,
+            fg_color="transparent",
+            hover_color="#333333",
+            text_color="#cccccc",
+            command=lambda: self.delete(name)
+        )
+        
+        # Position the close button on the right side of the tab
+        close_button.place(relx=1.0, rely=0.5, anchor="e", x=-5)
+        close_button.lower()  # Ensure it's behind the text
+        
+        # Store the close button reference
+        self._close_buttons[name] = close_button
+        
+        # Add hover bindings to show/hide close button
+        def on_enter(e):
+            if name in self._close_buttons:  # Check if button still exists
+                close_button.lift()
+                close_button.place(relx=1.0, rely=0.5, anchor="e", x=-5)  # Ensure proper positioning
+                
+        def on_leave(e):
+            if name in self._close_buttons and name != self.get():  # Don't hide if it's the active tab
+                close_button.lower()
+                
+        tab_button.bind('<Enter>', on_enter)
+        tab_button.bind('<Leave>', on_leave)
+        
+        return tab
+        
+    def delete(self, tab_name: str) -> None:
+        if tab_name in self._close_buttons:
+            self._close_buttons[tab_name].destroy()
+            del self._close_buttons[tab_name]
+        
+        # Get the next tab to select before deleting
+        current = self.get()
+        tabs = list(self._tab_dict.keys())
+        next_tab = None
+        
+        if tab_name == current and len(tabs) > 1:
+            current_idx = tabs.index(tab_name)
+            next_tab = tabs[current_idx - 1] if current_idx > 0 else tabs[current_idx + 1]
+            
+        super().delete(tab_name)
+        
+        if next_tab:
+            self.set(next_tab)
+        
+    def _create_tab_frame(self, name: str) -> None:
+        """Override to prevent recreation of tab frames"""
+        if name not in self._tab_dict:
+            super()._create_tab_frame(name)
+
 class MinuxApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -215,7 +297,7 @@ class MinuxApp(ctk.CTk):
         self.sidebar.grid_remove()  # Hidden by default
         
         # Create tab view with VSCode-like styling
-        self.tab_view = ctk.CTkTabview(
+        self.tab_view = VSCodeTabview(
             self,
             fg_color="#1e1e1e",  # Dark background like VSCode
             segmented_button_fg_color="#252526",  # Tab background
