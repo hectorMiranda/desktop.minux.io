@@ -154,7 +154,7 @@ class VSCodeTabview(ctk.CTkTabview):
         master.grid_rowconfigure(0, weight=1)
         
         # Make the tab view expand to fill available space
-        self.grid(row=0, column=2, sticky="nsew")
+        self.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
         
     def _configure_tab_view(self):
         """Configure the tab view appearance and layout"""
@@ -174,13 +174,13 @@ class VSCodeTabview(ctk.CTkTabview):
         )
         
         # Make tabs left-aligned and ensure content fills width
-        self._segmented_button.grid(row=0, column=0, sticky="ew")
+        self._segmented_button.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
         self.grid_columnconfigure(0, weight=1)  # Make the column containing tabs expand
         self.grid_rowconfigure(1, weight=1)  # Make the content area expand vertically
         
-        # Configure tab content area to fill entire width and height
+        # Configure tab content area to fill entire width and height without gaps
         tab_view = self._segmented_button.master
-        tab_view.grid(row=1, column=0, sticky="nsew")
+        tab_view.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
         tab_view.grid_columnconfigure(0, weight=1)
         tab_view.grid_rowconfigure(0, weight=1)
         
@@ -329,30 +329,32 @@ class VSCodeTextEditor(ctk.CTkFrame):
         super().__init__(master, **kwargs)
         self.configure(fg_color="#1e1e1e")
         
+        # Configure grid weights for proper expansion
+        self.grid_columnconfigure(2, weight=1)  # Text widget column should expand
+        self.grid_rowconfigure(0, weight=1)     # Row should expand vertically
+        
         # Create text widget with line numbers
         self.line_numbers = tk.Text(
             self,
-            width=6,
-            padx=5,
+            width=4,
+            padx=3,
             takefocus=0,
             border=0,
+            highlightthickness=0,  # Remove border
             background='#1e1e1e',
             foreground='#858585',
             font=('Cascadia Code', 11),
             state='disabled',
             cursor='arrow'
         )
-        self.line_numbers.pack(side='left', fill='y')
-        
-        # Add right border to line numbers
-        self.number_border = tk.Frame(self, width=1, bg='#333333')
-        self.number_border.pack(side='left', fill='y')
+        self.line_numbers.grid(row=0, column=0, sticky="ns", padx=0, pady=0)
         
         # Create main text widget
         self.text = tk.Text(
             self,
             wrap='none',
             border=0,
+            highlightthickness=0,  # Remove border
             background='#1e1e1e',
             foreground='#d4d4d4',
             insertbackground='#aeafad',
@@ -362,10 +364,10 @@ class VSCodeTextEditor(ctk.CTkFrame):
             font=('Cascadia Code', 11),
             undo=True,
             maxundo=-1,
-            padx=10,
-            pady=5
+            padx=5,
+            pady=0  # Remove vertical padding
         )
-        self.text.pack(side='left', fill='both', expand=True)
+        self.text.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
         
         # Create scrollbars with VSCode style
         self.vsb = ttk.Scrollbar(
@@ -374,12 +376,15 @@ class VSCodeTextEditor(ctk.CTkFrame):
             command=self.on_scroll_both,
             style="VSCode.Vertical.TScrollbar"
         )
+        self.vsb.grid(row=0, column=3, sticky="ns")
+        
         self.hsb = ttk.Scrollbar(
             self,
             orient='horizontal',
             command=self.text.xview,
             style="VSCode.Horizontal.TScrollbar"
         )
+        self.hsb.grid(row=1, column=2, sticky="ew")
         
         # Configure text widget scrolling
         self.text.configure(
@@ -387,9 +392,9 @@ class VSCodeTextEditor(ctk.CTkFrame):
             xscrollcommand=self.hsb.set
         )
         
-        # Pack scrollbars with proper padding and appearance
-        self.vsb.pack(side='right', fill='y', padx=(0, 0))
-        self.hsb.pack(side='bottom', fill='x', pady=(0, 0))
+        # Configure grid weights
+        self.grid_columnconfigure(2, weight=1)  # Make text widget expand horizontally
+        self.grid_rowconfigure(0, weight=1)     # Make text widget expand vertically
         
         # Configure scrollbar style
         style = ttk.Style()
@@ -499,6 +504,9 @@ class MinuxApp(ctk.CTk):
             # Initialize tooltip variables
             self.tooltip_window = None
             self.tooltip_timer = None
+            
+            # Track current active panel
+            self.current_panel = None
             
             # Set window title and size
             self.title("Marcetux")
@@ -636,27 +644,33 @@ class MinuxApp(ctk.CTk):
             self.help_menu.add_command(label="About", command=self.show_about)
 
             # Configure main grid layout
-            self.grid_columnconfigure(2, weight=1)  # Make tab view expand
-            self.grid_rowconfigure(0, weight=1)  # Make main content expand
-            
+            self.grid_columnconfigure(0, weight=0)  # Activity bar - fixed width
+            self.grid_columnconfigure(1, weight=0)  # Sidebar - fixed width
+            self.grid_columnconfigure(2, weight=1)  # Main content - should expand
+            self.grid_rowconfigure(0, weight=1)     # Main content area should expand
+            self.grid_rowconfigure(1, weight=0)     # Terminal area - fixed height
+            self.grid_rowconfigure(2, weight=0)     # Notification area - fixed height
+            self.grid_rowconfigure(3, weight=0)     # Status bar - fixed height
+
             # Create activity bar (leftmost)
             logger.debug("Creating activity bar")
             self.activity_bar = ctk.CTkFrame(self, fg_color="#333333", width=48, corner_radius=0)
-            self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew")
+            self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=0, pady=0)
             self.activity_bar.grid_propagate(False)
-            
+
             # Create sidebar (left)
             logger.debug("Creating sidebar")
             self.sidebar = ctk.CTkFrame(self, fg_color="#252526", width=240, corner_radius=0)
-            self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew")
+            self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0, pady=0)
             self.sidebar.grid_remove()  # Hidden by default
-            
+            self.sidebar.grid_propagate(False)  # Prevent sidebar from resizing
+
             # Create tab view (center)
             logger.debug("Creating tab view")
             self.tab_view = None
             try:
                 self.tab_view = VSCodeTabview(self)
-                self.tab_view.grid(row=0, column=2, sticky="nsew")
+                self.tab_view.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
             except Exception as e:
                 logger.error(f"Failed to create tab view: {str(e)}", exc_info=True)
                 self.show_error_notification(f"Failed to create tab view: {str(e)}")
@@ -1144,7 +1158,7 @@ class MinuxApp(ctk.CTk):
         
         # Create terminal frame with title bar
         self.terminal_header = ctk.CTkFrame(self.terminal_frame, fg_color="#2D2D2D", height=35, corner_radius=0)
-        self.terminal_header.pack(fill="x", side="top")
+        self.terminal_header.pack(fill="x", side="top", padx=0, pady=0)
         self.terminal_header.pack_propagate(False)
         
         # Add TERMINAL text
@@ -1154,7 +1168,7 @@ class MinuxApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#BBBBBB"
         )
-        self.terminal_title.pack(side="left", padx=10)
+        self.terminal_title.pack(side="left", padx=10, pady=0)
         
         # Create terminal text widget with proper styling
         self.terminal = ctk.CTkTextbox(
@@ -1165,7 +1179,7 @@ class MinuxApp(ctk.CTk):
             wrap="none",
             corner_radius=0
         )
-        self.terminal.pack(fill="both", expand=True)
+        self.terminal.pack(fill="both", expand=True, padx=0, pady=0)
         
         # Configure text widget for logging
         self.terminal._textbox.configure(
@@ -1176,8 +1190,8 @@ class MinuxApp(ctk.CTk):
             selectforeground="#ffffff",
             relief="flat",
             borderwidth=0,
-            padx=10,
-            pady=10
+            padx=5,
+            pady=5
         )
         
         # Configure scrollbar style
@@ -1205,9 +1219,8 @@ class MinuxApp(ctk.CTk):
         logger.info("Terminal initialized")
         logger.debug("Debug logging enabled")
         logger.info(f"Python version: {sys.version}")
-        logger.warning("Warning messages will appear in orange")
-        logger.error("Error messages will appear in red")
-        logger.critical("Critical errors will be underlined in red")
+        logger.info(f"Platform: {platform.platform()}")
+        logger.info(f"Working directory: {os.getcwd()}")
         
     def setup_status_bar(self):
         """Setup the status bar"""
@@ -1217,9 +1230,12 @@ class MinuxApp(ctk.CTk):
         
     def toggle_explorer(self):
         """Toggle the file explorer sidebar"""
-        if self.sidebar.winfo_ismapped():
+        if self.sidebar.winfo_ismapped() and self.current_panel == "explorer":
+            # If explorer is currently shown, hide it
             self.sidebar.grid_remove()
+            self.current_panel = None
         else:
+            # Show explorer
             self.sidebar.grid()
             # Clear existing content
             for widget in self.sidebar.winfo_children():
@@ -1227,38 +1243,75 @@ class MinuxApp(ctk.CTk):
             # Add file explorer
             explorer = FileExplorer(self.sidebar, self)
             explorer.pack(fill="both", expand=True)
+            self.current_panel = "explorer"
             
     def toggle_search(self):
         """Toggle the search sidebar"""
-        if self.sidebar.winfo_ismapped():
+        if self.sidebar.winfo_ismapped() and self.current_panel == "search":
+            # If search is currently shown, hide it
             self.sidebar.grid_remove()
+            self.current_panel = None
         else:
+            # Show search
             self.sidebar.grid()
-            # TODO: Implement search functionality
+            # Clear existing content
+            for widget in self.sidebar.winfo_children():
+                widget.destroy()
+            # TODO: Add search content
+            search_label = ctk.CTkLabel(self.sidebar, text="Search", font=("Segoe UI", 14, "bold"))
+            search_label.pack(padx=10, pady=10)
+            self.current_panel = "search"
             
     def toggle_source_control(self):
         """Toggle the source control sidebar"""
-        if self.sidebar.winfo_ismapped():
+        if self.sidebar.winfo_ismapped() and self.current_panel == "source_control":
+            # If source control is currently shown, hide it
             self.sidebar.grid_remove()
+            self.current_panel = None
         else:
+            # Show source control
             self.sidebar.grid()
-            # TODO: Implement source control functionality
+            # Clear existing content
+            for widget in self.sidebar.winfo_children():
+                widget.destroy()
+            # TODO: Add source control content
+            git_label = ctk.CTkLabel(self.sidebar, text="Source Control", font=("Segoe UI", 14, "bold"))
+            git_label.pack(padx=10, pady=10)
+            self.current_panel = "source_control"
             
     def toggle_debug(self):
         """Toggle the debug sidebar"""
-        if self.sidebar.winfo_ismapped():
+        if self.sidebar.winfo_ismapped() and self.current_panel == "debug":
+            # If debug is currently shown, hide it
             self.sidebar.grid_remove()
+            self.current_panel = None
         else:
+            # Show debug
             self.sidebar.grid()
-            # TODO: Implement debug functionality
+            # Clear existing content
+            for widget in self.sidebar.winfo_children():
+                widget.destroy()
+            # TODO: Add debug content
+            debug_label = ctk.CTkLabel(self.sidebar, text="Run and Debug", font=("Segoe UI", 14, "bold"))
+            debug_label.pack(padx=10, pady=10)
+            self.current_panel = "debug"
             
     def toggle_extensions(self):
         """Toggle the extensions sidebar"""
-        if self.sidebar.winfo_ismapped():
+        if self.sidebar.winfo_ismapped() and self.current_panel == "extensions":
+            # If extensions is currently shown, hide it
             self.sidebar.grid_remove()
+            self.current_panel = None
         else:
+            # Show extensions
             self.sidebar.grid()
-            # TODO: Implement extensions functionality
+            # Clear existing content
+            for widget in self.sidebar.winfo_children():
+                widget.destroy()
+            # TODO: Add extensions content
+            extensions_label = ctk.CTkLabel(self.sidebar, text="Extensions", font=("Segoe UI", 14, "bold"))
+            extensions_label.pack(padx=10, pady=10)
+            self.current_panel = "extensions"
             
     def toggle_terminal(self):
         """Toggle the terminal panel"""
