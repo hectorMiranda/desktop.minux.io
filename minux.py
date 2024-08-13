@@ -1146,22 +1146,45 @@ class MinuxApp(ctk.CTk):
         self.terminal_header.pack(fill="x", side="top", padx=0, pady=0)
         self.terminal_header.pack_propagate(False)
         
-        # Create header container for title and close button
+        # Create header container for title and controls
         header_container = ctk.CTkFrame(self.terminal_header, fg_color="transparent")
         header_container.pack(fill="x", expand=True)
         
+        # Left side container for terminal title and controls
+        left_container = ctk.CTkFrame(header_container, fg_color="transparent")
+        left_container.pack(side="left", fill="x", expand=True)
+        
         # Add TERMINAL text
         self.terminal_title = ctk.CTkLabel(
-            header_container,
+            left_container,
             text="TERMINAL",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#BBBBBB"
         )
         self.terminal_title.pack(side="left", padx=10, pady=0)
         
+        # Right side container for window controls
+        right_container = ctk.CTkFrame(header_container, fg_color="transparent")
+        right_container.pack(side="right", fill="y")
+        
+        # Add maximize button
+        maximize_button = ctk.CTkButton(
+            right_container,
+            text="□",
+            width=20,
+            height=20,
+            fg_color="transparent",
+            hover_color="#404040",
+            text_color="#BBBBBB",
+            font=ctk.CTkFont(size=14),
+            corner_radius=0,
+            command=self.maximize_terminal
+        )
+        maximize_button.pack(side="left", padx=2, pady=0)
+        
         # Add close button
         close_button = ctk.CTkButton(
-            header_container,
+            right_container,
             text="×",
             width=20,
             height=20,
@@ -1172,7 +1195,7 @@ class MinuxApp(ctk.CTk):
             corner_radius=0,
             command=self.toggle_terminal
         )
-        close_button.pack(side="right", padx=5, pady=0)
+        close_button.pack(side="left", padx=2, pady=0)
         
         # Create terminal text widget with proper styling
         self.terminal = ctk.CTkTextbox(
@@ -1225,6 +1248,17 @@ class MinuxApp(ctk.CTk):
         logger.info(f"Python version: {sys.version}")
         logger.info(f"Platform: {platform.platform()}")
         logger.info(f"Working directory: {os.getcwd()}")
+
+    def maximize_terminal(self):
+        """Toggle terminal between normal and maximized height"""
+        if self.terminal_frame.winfo_height() > 200:
+            # Return to normal size
+            self.terminal_frame.configure(height=200)
+        else:
+            # Maximize (use 60% of window height)
+            window_height = self.winfo_height()
+            max_height = int(window_height * 0.6)
+            self.terminal_frame.configure(height=max_height)
         
     def setup_status_bar(self):
         """Setup the status bar"""
@@ -1526,7 +1560,7 @@ class MinuxApp(ctk.CTk):
         self.show_error_notification("Breakpoint functionality coming soon")
 
     def new_terminal(self):
-        """Create new terminal"""
+        """Create new terminal by showing the terminal panel"""
         self.toggle_terminal()
 
     def split_terminal(self):
@@ -1706,48 +1740,8 @@ class MinuxApp(ctk.CTk):
             self.show_error_notification(f"Failed to show Welcome tab: {str(e)}")
 
     def show_minux_terminal(self):
-        """Show or focus the Minux Terminal tab"""
-        try:
-            # Check if Minux Terminal tab exists
-            if "Minux Terminal" in self.tab_view._tab_dict:
-                # Focus existing Minux Terminal tab
-                self.tab_view.set("Minux Terminal")
-            else:
-                # Create new Minux Terminal tab
-                terminal_frame = self.tab_view.add("Minux Terminal")
-                terminal_frame.configure(fg_color="#1e1e1e")
-                
-                # Create terminal text widget
-                terminal = ctk.CTkTextbox(
-                    terminal_frame,
-                    fg_color="#1e1e1e",
-                    text_color="#cccccc",
-                    font=("Cascadia Code", 11),
-                    wrap="none",
-                    corner_radius=0
-                )
-                terminal.pack(fill="both", expand=True)
-                
-                # Add terminal handler to logger
-                terminal_handler = TerminalHandler(terminal)
-                terminal_handler.setFormatter(
-                    logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-                )
-                logger.addHandler(terminal_handler)
-                
-                # Switch to the terminal tab
-                self.tab_view.set("Minux Terminal")
-                
-                # Log some initial information
-                logger.info("Minux Terminal initialized")
-                logger.info("Logging level: DEBUG")
-                logger.info(f"Python version: {sys.version}")
-                logger.info(f"Platform: {platform.platform()}")
-                logger.info(f"Working directory: {os.getcwd()}")
-                
-        except Exception as e:
-            logger.error(f"Failed to show Minux Terminal: {str(e)}")
-            self.show_error_notification(f"Failed to show Minux Terminal: {str(e)}")
+        """Redirect to toggle_terminal for consistency"""
+        self.toggle_terminal()
 
     def create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""
