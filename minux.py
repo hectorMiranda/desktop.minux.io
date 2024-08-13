@@ -711,25 +711,10 @@ class MinuxApp(ctk.CTk):
             # Show welcome screen
             logger.debug("Attempting to show welcome screen")
             try:
-                welcome_frame = self.tab_view.add("Welcome")
-                if welcome_frame is None:
-                    raise ValueError("Failed to create welcome frame")
-                    
-                logger.debug("Created welcome frame, now creating WelcomeScreen")
-                welcome_screen = WelcomeScreen(welcome_frame, self.handle_welcome_action)
-                if welcome_screen is None:
-                    raise ValueError("Failed to create WelcomeScreen instance")
-                    
-                logger.debug("Created WelcomeScreen, now packing")
-                welcome_screen.pack(fill="both", expand=True)
-                
-                logger.debug("Setting active tab to Welcome")
-                self.tab_view.set("Welcome")
-                
+                self.show_welcome()
             except Exception as e:
                 logger.error(f"Failed to show welcome screen: {str(e)}", exc_info=True)
                 self.show_error_notification(f"Failed to show welcome screen: {str(e)}")
-                raise
                 
         except Exception as e:
             logger.error(f"Error in MinuxApp initialization: {str(e)}", exc_info=True)
@@ -1161,14 +1146,33 @@ class MinuxApp(ctk.CTk):
         self.terminal_header.pack(fill="x", side="top", padx=0, pady=0)
         self.terminal_header.pack_propagate(False)
         
+        # Create header container for title and close button
+        header_container = ctk.CTkFrame(self.terminal_header, fg_color="transparent")
+        header_container.pack(fill="x", expand=True)
+        
         # Add TERMINAL text
         self.terminal_title = ctk.CTkLabel(
-            self.terminal_header,
+            header_container,
             text="TERMINAL",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#BBBBBB"
         )
         self.terminal_title.pack(side="left", padx=10, pady=0)
+        
+        # Add close button
+        close_button = ctk.CTkButton(
+            header_container,
+            text="×",
+            width=20,
+            height=20,
+            fg_color="transparent",
+            hover_color="#404040",
+            text_color="#BBBBBB",
+            font=ctk.CTkFont(size=14),
+            corner_radius=0,
+            command=self.toggle_terminal
+        )
+        close_button.pack(side="right", padx=5, pady=0)
         
         # Create terminal text widget with proper styling
         self.terminal = ctk.CTkTextbox(
@@ -1205,7 +1209,7 @@ class MinuxApp(ctk.CTk):
             borderwidth=0
         )
         
-        # Configure terminal scrollbar after creation
+        # Configure terminal scrollbar
         if hasattr(self.terminal, '_scrollbar'):
             self.terminal._scrollbar.configure(style="VSCode.Vertical.TScrollbar")
         
@@ -1319,8 +1323,19 @@ class MinuxApp(ctk.CTk):
             self.terminal_frame.grid_remove()
             self.terminal_visible = False
         else:
-            self.terminal_frame.grid()
+            # Configure terminal frame
+            self.terminal_frame.grid(row=1, column=2, sticky="nsew", padx=0, pady=0)
+            
+            # Configure grid weights for proper expansion
+            self.terminal_frame.grid_columnconfigure(0, weight=1)
+            self.terminal_frame.grid_rowconfigure(1, weight=1)  # Row 0 is header, row 1 is terminal
+            
+            # Show terminal
             self.terminal_visible = True
+            
+            # Give focus to the terminal
+            if hasattr(self, 'terminal'):
+                self.terminal._textbox.focus_set()
 
     def open_file(self, file_path):
         """Open a file in a new tab"""
@@ -1671,8 +1686,19 @@ class MinuxApp(ctk.CTk):
             else:
                 # Create new Welcome tab
                 welcome_frame = self.tab_view.add("Welcome")
+                if welcome_frame is None:
+                    raise ValueError("Failed to create welcome frame")
+                
+                # Configure welcome frame
+                welcome_frame.configure(fg_color="#1e1e1e")
+                welcome_frame.grid_columnconfigure(0, weight=1)
+                welcome_frame.grid_rowconfigure(0, weight=1)
+                
+                # Create welcome screen
                 welcome_screen = WelcomeScreen(welcome_frame, self.handle_welcome_action)
-                welcome_screen.pack(fill="both", expand=True)
+                welcome_screen.pack(fill="both", expand=True, padx=0, pady=0)
+                
+                # Switch to Welcome tab
                 self.tab_view.set("Welcome")
                 
         except Exception as e:
