@@ -207,15 +207,16 @@ class FileExplorer(ctk.CTkFrame):
         if not item["is_dir"]:
             return
             
-        # Create container for children
-        container = ctk.CTkFrame(item["frame"].master, fg_color="transparent")
-        container.pack(fill="x")
+        # Create container for children that comes after the current item
+        container = ctk.CTkFrame(self.tree_container, fg_color="transparent")
+        container.pack(fill="x", after=item["frame"])
         item["children_container"] = container
         item["expanded"] = True
         
         try:
             # List directory contents
             entries = os.listdir(path)
+            # Sort directories first, then files, both in alphabetical order
             entries.sort(key=lambda x: (not os.path.isdir(os.path.join(path, x)), x.lower()))
             
             for entry in entries:
@@ -225,6 +226,12 @@ class FileExplorer(ctk.CTkFrame):
                     self.create_tree_item(container, entry, entry_path, is_dir, item["level"] + 1)
         except Exception as e:
             print(f"Error expanding directory: {e}")
+            if item["arrow_label"]:
+                item["arrow_label"].configure(text="▶")  # Reset arrow if failed
+            if item["children_container"]:
+                item["children_container"].destroy()
+                item["children_container"] = None
+            item["expanded"] = False
             
     def item_clicked(self, path, is_dir):
         """Handle item click"""
