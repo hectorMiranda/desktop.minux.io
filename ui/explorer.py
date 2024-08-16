@@ -1,6 +1,6 @@
 import os
 import customtkinter as ctk
-from PIL import Image
+from PIL import Image, ImageTk
 import tkinter as tk
 
 class FileExplorer(ctk.CTkFrame):
@@ -78,13 +78,13 @@ class FileExplorer(ctk.CTkFrame):
     def create_tree_item(self, parent, name, path, is_dir, level):
         # Create frame for this item
         item_frame = ctk.CTkFrame(parent, fg_color="transparent", height=22)
-        item_frame.pack(fill="x")
+        item_frame.pack(fill="x", padx=0, pady=0)
         item_frame.pack_propagate(False)
         
         # Add indentation
         if level > 0:
             indent = ctk.CTkFrame(item_frame, fg_color="transparent", width=level * 16)
-            indent.pack(side="left")
+            indent.pack(side="left", padx=0, pady=0)
         
         # Add expand/collapse arrow for directories
         if is_dir:
@@ -96,11 +96,25 @@ class FileExplorer(ctk.CTkFrame):
                 width=16,
                 text_color="#858585"
             )
-            arrow_label.pack(side="left")
-            arrow_label.bind("<Button-1>", lambda e, p=path: self.toggle_directory(p))
+            arrow_label.pack(side="left", padx=0, pady=0)
+            
+            # Bind arrow events
+            def on_arrow_click(e):
+                self.toggle_directory(path)
+                return "break"  # Prevent event propagation
+                
+            def on_arrow_enter(e):
+                arrow_label.configure(text_color="#CCCCCC")
+                
+            def on_arrow_leave(e):
+                arrow_label.configure(text_color="#858585")
+                
+            arrow_label.bind("<Button-1>", on_arrow_click)
+            arrow_label.bind("<Enter>", on_arrow_enter)
+            arrow_label.bind("<Leave>", on_arrow_leave)
         else:
             spacer = ctk.CTkFrame(item_frame, fg_color="transparent", width=16)
-            spacer.pack(side="left")
+            spacer.pack(side="left", padx=0, pady=0)
         
         # Add icon
         try:
@@ -118,7 +132,14 @@ class FileExplorer(ctk.CTkFrame):
             )
         except Exception as e:
             # Fallback to text icons
-            icon = "📁" if is_dir else "📄"
+            if is_dir:
+                icon = "📁"
+            elif self.is_image_file(name):
+                icon = "🖼"
+            elif self.is_text_file(name):
+                icon = "📄"
+            else:
+                icon = "📦"
             icon_label = ctk.CTkLabel(
                 item_frame,
                 text=icon,
@@ -126,7 +147,7 @@ class FileExplorer(ctk.CTkFrame):
                 width=20,
                 text_color="#858585"
             )
-        icon_label.pack(side="left")
+        icon_label.pack(side="left", padx=(2, 4), pady=0)
         
         # Add name label
         name_label = ctk.CTkLabel(
@@ -136,7 +157,7 @@ class FileExplorer(ctk.CTkFrame):
             anchor="w",
             text_color="#CCCCCC"
         )
-        name_label.pack(side="left", fill="x", expand=True)
+        name_label.pack(side="left", fill="x", expand=True, padx=0, pady=0)
         
         # Store item info
         self.tree_items[path] = {
@@ -145,15 +166,23 @@ class FileExplorer(ctk.CTkFrame):
             "level": level,
             "expanded": False,
             "children_container": None,
-            "arrow_label": arrow_label if is_dir else None
+            "arrow_label": arrow_label if is_dir else None,
+            "name_label": name_label,
+            "icon_label": icon_label
         }
         
-        # Bind click events
-        for widget in [item_frame, name_label, icon_label]:
-            widget.bind("<Button-1>", lambda e, p=path, d=is_dir: self.item_clicked(p, d))
-            widget.bind("<Double-Button-1>", lambda e, p=path, d=is_dir: self.item_double_clicked(p, d))
-        
-        # Change color on hover and selection
+        # Define event handlers
+        def on_click(e):
+            self.item_clicked(path, is_dir)
+            return "break"  # Prevent event propagation
+            
+        def on_double_click(e):
+            if is_dir:
+                self.toggle_directory(path)
+            else:
+                self.item_clicked(path, is_dir)
+            return "break"  # Prevent event propagation
+            
         def on_enter(e):
             if self.selected_item != path:
                 item_frame.configure(fg_color="#2A2D2E")
@@ -162,25 +191,116 @@ class FileExplorer(ctk.CTkFrame):
             if self.selected_item != path:
                 item_frame.configure(fg_color="transparent")
         
+        # Bind events to all components
         for widget in [item_frame, name_label, icon_label]:
+            widget.bind("<Button-1>", on_click)
+            widget.bind("<Double-Button-1>", on_double_click)
             widget.bind("<Enter>", on_enter)
             widget.bind("<Leave>", on_leave)
-            
+        
     def get_file_icon(self, filename):
         """Get the appropriate icon for a file based on its extension"""
         ext = os.path.splitext(filename)[1].lower()
-        icon_map = {
+        name = os.path.basename(filename).lower()
+
+        # Code files
+        code_files = {
             '.py': 'python.png',
             '.js': 'javascript.png',
             '.html': 'html.png',
             '.css': 'css.png',
+            '.cpp': 'cpp.png',
+            '.c': 'c.png',
+            '.h': 'h.png',
+            '.java': 'java.png',
+            '.php': 'php.png',
+            '.rb': 'ruby.png',
+            '.go': 'go.png',
+            '.ts': 'typescript.png',
+            '.jsx': 'react.png',
+            '.tsx': 'react.png',
+        }
+
+        # Config and data files
+        config_files = {
             '.json': 'json.png',
+            '.xml': 'xml.png',
+            '.yaml': 'yaml.png',
+            '.yml': 'yaml.png',
+            '.toml': 'toml.png',
+            '.ini': 'config.png',
+            '.conf': 'config.png',
+            '.config': 'config.png',
+        }
+
+        # Documentation files
+        doc_files = {
             '.md': 'markdown.png',
             '.txt': 'text.png',
-            '.gitignore': 'git.png',
-            'README.md': 'readme.png'
+            '.pdf': 'pdf.png',
+            '.doc': 'word.png',
+            '.docx': 'word.png',
+            '.rtf': 'text.png',
         }
-        return icon_map.get(ext, 'file.png')
+
+        # Image files
+        image_files = {
+            '.png': 'image.png',
+            '.jpg': 'image.png',
+            '.jpeg': 'image.png',
+            '.gif': 'image.png',
+            '.bmp': 'image.png',
+            '.ico': 'image.png',
+            '.svg': 'svg.png',
+            '.webp': 'image.png',
+        }
+
+        # Special files
+        if name == 'readme.md':
+            return 'readme.png'
+        elif name == '.gitignore':
+            return 'git.png'
+        elif name == 'requirements.txt':
+            return 'python.png'
+        elif name == 'package.json':
+            return 'npm.png'
+        elif name == 'dockerfile':
+            return 'docker.png'
+
+        # Check file categories
+        if ext in code_files:
+            return code_files[ext]
+        elif ext in config_files:
+            return config_files[ext]
+        elif ext in doc_files:
+            return doc_files[ext]
+        elif ext in image_files:
+            return image_files[ext]
+
+        # Binary files
+        binary_extensions = {'.exe', '.dll', '.so', '.dylib', '.bin', '.dat'}
+        if ext in binary_extensions:
+            return 'binary.png'
+
+        # Default to generic file icon
+        return 'file.png'
+
+    def is_image_file(self, filename):
+        """Check if the file is an image"""
+        image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp'}
+        ext = os.path.splitext(filename)[1].lower()
+        return ext in image_extensions
+
+    def is_text_file(self, filename):
+        """Check if the file is a text/code file"""
+        text_extensions = {
+            '.py', '.js', '.html', '.css', '.cpp', '.c', '.h', '.java',
+            '.php', '.rb', '.go', '.ts', '.jsx', '.tsx', '.md', '.txt',
+            '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.conf',
+            '.config', '.rtf'
+        }
+        ext = os.path.splitext(filename)[1].lower()
+        return ext in text_extensions
         
     def toggle_directory(self, path):
         """Toggle directory expansion/collapse"""
@@ -238,16 +358,34 @@ class FileExplorer(ctk.CTkFrame):
         # Update selection
         if self.selected_item:
             old_item = self.tree_items.get(self.selected_item)
-            if old_item:
-                old_item["frame"].configure(fg_color="transparent")
+            if old_item and old_item["frame"].winfo_exists():
+                try:
+                    old_item["frame"].configure(fg_color="transparent")
+                except tk.TclError:
+                    # Remove invalid item from tree_items
+                    del self.tree_items[self.selected_item]
+                
+        # Clean up any destroyed items from tree_items
+        invalid_paths = []
+        for item_path, item_data in self.tree_items.items():
+            if not item_data["frame"].winfo_exists():
+                invalid_paths.append(item_path)
+        for invalid_path in invalid_paths:
+            del self.tree_items[invalid_path]
                 
         self.selected_item = path
-        self.tree_items[path]["frame"].configure(fg_color="#37373D")
-        
-        if not is_dir:
-            # Open file in editor
-            if hasattr(self.app, 'open_file'):
-                self.app.open_file(path)
+        current_item = self.tree_items.get(path)
+        if current_item and current_item["frame"].winfo_exists():
+            current_item["frame"].configure(fg_color="#37373D")
+            
+            if not is_dir:
+                if self.is_image_file(path):
+                    # Show image preview for image files
+                    self.show_image_preview(path)
+                else:
+                    # Open file in editor for text files
+                    if hasattr(self.app, 'open_file'):
+                        self.app.open_file(path)
                 
     def item_double_clicked(self, path, is_dir):
         """Handle item double click"""
@@ -299,4 +437,86 @@ class FileExplorer(ctk.CTkFrame):
         self.create_tree_item(self.tree_container, root_name, self.current_path, True, 0)
         
         # Expand root
-        self.toggle_directory(self.current_path) 
+        self.toggle_directory(self.current_path)
+
+    def show_image_preview(self, path):
+        """Show image preview in a new tab"""
+        try:
+            # Get the file name for the tab title
+            file_name = os.path.basename(path)
+            
+            # Create new tab using the app's tab view
+            if hasattr(self.app, 'tab_view'):
+                # Create tab
+                tab = self.app.tab_view.add(file_name)
+                
+                # Create scrollable frame in the tab
+                scroll_frame = ctk.CTkScrollableFrame(
+                    tab,
+                    fg_color="#1e1e1e",
+                    corner_radius=0
+                )
+                scroll_frame.pack(fill="both", expand=True, padx=0, pady=0)
+                
+                # Load and display image
+                image = Image.open(path)
+                
+                # Calculate new size while maintaining aspect ratio
+                # Use tab size instead of fixed size
+                tab.update_idletasks()  # Ensure we have correct dimensions
+                max_width = tab.winfo_width() - 40  # Account for padding and scrollbar
+                max_height = tab.winfo_height() - 40
+                ratio = min(max_width/image.width, max_height/image.height)
+                new_width = int(image.width * ratio)
+                new_height = int(image.height * ratio)
+                
+                # Resize image if needed
+                if ratio < 1:
+                    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # Convert to PhotoImage
+                photo = ImageTk.PhotoImage(image)
+                
+                # Create container for image and info
+                content_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+                content_frame.pack(fill="both", expand=True)
+                
+                # Create and pack image label
+                image_label = ctk.CTkLabel(
+                    content_frame,
+                    text="",
+                    image=photo
+                )
+                image_label.image = photo  # Keep a reference to prevent garbage collection
+                image_label.pack(padx=5, pady=5)
+                
+                # Add image info with monospace font
+                info_text = (
+                    f"Image: {file_name}\n"
+                    f"Format: {image.format}\n"
+                    f"Size: {image.width}x{image.height} pixels\n"
+                    f"Mode: {image.mode}"
+                )
+                info_label = ctk.CTkLabel(
+                    content_frame,
+                    text=info_text,
+                    font=("Cascadia Code", 11),
+                    text_color="#CCCCCC",
+                    justify="left"
+                )
+                info_label.pack(pady=5, anchor="w", padx=5)
+                
+                # Switch to the new tab
+                self.app.tab_view.set(file_name)
+                
+                # Store reference to prevent garbage collection
+                tab._image_preview = {
+                    'photo': photo,
+                    'image_label': image_label,
+                    'info_label': info_label
+                }
+                
+        except Exception as e:
+            print(f"Error showing image preview: {e}")
+            if hasattr(self.app, 'show_error_notification'):
+                self.app.show_error_notification(f"Error showing image preview: {e}") 
