@@ -202,87 +202,36 @@ class FileExplorer(ctk.CTkFrame):
         """Get the appropriate icon for a file based on its extension"""
         ext = os.path.splitext(filename)[1].lower()
         name = os.path.basename(filename).lower()
-
-        # Code files
-        code_files = {
-            '.py': 'python.png',
-            '.js': 'javascript.png',
-            '.html': 'html.png',
-            '.css': 'css.png',
-            '.cpp': 'cpp.png',
-            '.c': 'c.png',
-            '.h': 'h.png',
-            '.java': 'java.png',
-            '.php': 'php.png',
-            '.rb': 'ruby.png',
-            '.go': 'go.png',
-            '.ts': 'typescript.png',
-            '.jsx': 'react.png',
-            '.tsx': 'react.png',
-        }
-
-        # Config and data files
-        config_files = {
-            '.json': 'json.png',
-            '.xml': 'xml.png',
-            '.yaml': 'yaml.png',
-            '.yml': 'yaml.png',
-            '.toml': 'toml.png',
-            '.ini': 'config.png',
-            '.conf': 'config.png',
-            '.config': 'config.png',
-        }
-
-        # Documentation files
-        doc_files = {
-            '.md': 'markdown.png',
-            '.txt': 'text.png',
-            '.pdf': 'pdf.png',
-            '.doc': 'word.png',
-            '.docx': 'word.png',
-            '.rtf': 'text.png',
-        }
-
-        # Image files
-        image_files = {
-            '.png': 'image.png',
-            '.jpg': 'image.png',
-            '.jpeg': 'image.png',
-            '.gif': 'image.png',
-            '.bmp': 'image.png',
-            '.ico': 'image.png',
-            '.svg': 'svg.png',
-            '.webp': 'image.png',
-        }
-
+        
         # Special files
-        if name == 'readme.md':
-            return 'readme.png'
+        if name == 'dockerfile':
+            return 'docker.svg'
         elif name == '.gitignore':
             return 'git.png'
-        elif name == 'requirements.txt':
-            return 'python.png'
         elif name == 'package.json':
             return 'npm.png'
-        elif name == 'dockerfile':
-            return 'docker.png'
-
-        # Check file categories
-        if ext in code_files:
-            return code_files[ext]
-        elif ext in config_files:
-            return config_files[ext]
-        elif ext in doc_files:
-            return doc_files[ext]
-        elif ext in image_files:
-            return image_files[ext]
-
-        # Binary files
-        binary_extensions = {'.exe', '.dll', '.so', '.dylib', '.bin', '.dat'}
-        if ext in binary_extensions:
+        elif name == 'readme.md':
+            return 'markdown.png'
+        
+        # Try extension without the dot for both .png and .svg
+        if ext:
+            ext_name = ext[1:]  # Remove the dot
+            # Try PNG version
+            if os.path.exists(os.path.join("media", "icons", f"{ext_name}.png")):
+                return f"{ext_name}.png"
+            # Try SVG version
+            if os.path.exists(os.path.join("media", "icons", f"{ext_name}.svg")):
+                return f"{ext_name}.svg"
+        
+        # Handle specific file types
+        if self.is_image_file(filename):
+            return 'image.png'
+        elif ext in {'.exe', '.dll', '.so', '.dylib', '.bin', '.dat'}:
             return 'binary.png'
-
-        # Default to generic file icon
+        elif ext in {'.py', '.js', '.ts', '.html', '.css', '.java', '.cpp', '.c', '.h'}:
+            return 'file.png'
+        
+        # Default to file icon
         return 'file.png'
 
     def is_image_file(self, filename):
