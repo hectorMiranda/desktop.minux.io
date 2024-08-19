@@ -8,6 +8,7 @@ class WelcomeScreen(ctk.CTkFrame):
     def __init__(self, parent, callback):
         super().__init__(parent, fg_color="#1e1e1e", corner_radius=0)
         self.callback = callback
+        self.app = parent  # Store reference to main app
         
         # Create main container
         container = ctk.CTkFrame(self, fg_color="transparent")
@@ -92,47 +93,116 @@ class WelcomeScreen(ctk.CTkFrame):
         self.load_pending_tasks(tasks_frame)
 
     def create_action_button(self, parent, title, icon_name, description):
-        """Create a button with icon and description"""
-        btn_frame = ctk.CTkFrame(parent, fg_color="#2a2d2e", corner_radius=5)
-        btn_frame.pack(fill="x", pady=5)
-        btn_frame.bind("<Button-1>", lambda e: self.callback(title))
+        """Create a clickable action button with icon and description"""
+        # Create main frame for the button
+        button_frame = ctk.CTkFrame(parent, fg_color="#2D2D2D", corner_radius=4)
+        button_frame.pack(fill="x", padx=10, pady=5)
         
-        content_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
-        content_frame.pack(fill="x", padx=10, pady=10)
+        # Create content frame
+        content = ctk.CTkFrame(button_frame, fg_color="transparent")
+        content.pack(fill="x", padx=10, pady=10)
         
-        # Try to load icon
-        icon_path = os.path.join("media", "icons", icon_name)
-        if os.path.exists(icon_path):
-            try:
-                icon_image = Image.open(icon_path)
-                if icon_image.mode != 'RGBA':
-                    icon_image = icon_image.convert('RGBA')
-                icon_img = ctk.CTkImage(light_image=icon_image, dark_image=icon_image, size=(24, 24))
-                icon_label = ctk.CTkLabel(content_frame, image=icon_img, text="")
-                icon_label.pack(side="left", padx=(0, 10))
-            except Exception as e:
-                print(f"Error loading icon {icon_name}: {e}")
+        try:
+            # Get the absolute path to the icons directory
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "media", "icons", icon_name)
+            icon = ctk.CTkImage(
+                light_image=Image.open(icon_path),
+                dark_image=Image.open(icon_path),
+                size=(16, 16)
+            )
+            icon_label = ctk.CTkLabel(
+                content,
+                text="",
+                image=icon,
+                width=20,
+                cursor="hand2"
+            )
+        except Exception as e:
+            print(f"Error loading icon {icon_name}: {e}")
+            icon_label = ctk.CTkLabel(
+                content,
+                text="📁",
+                font=ctk.CTkFont(size=14),
+                width=20,
+                text_color="#858585",
+                cursor="hand2"
+            )
+        icon_label.pack(side="left", padx=(0, 5))
         
-        text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-        text_frame.pack(side="left", fill="x", expand=True)
-        
+        # Add title
         title_label = ctk.CTkLabel(
-            text_frame,
+            content,
             text=title,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=14),
             text_color="#CCCCCC",
-            anchor="w"
+            cursor="hand2"
         )
-        title_label.pack(fill="x")
+        title_label.pack(side="left")
         
-        desc_label = ctk.CTkLabel(
-            text_frame,
-            text=description,
-            font=ctk.CTkFont(size=12),
-            text_color="#888888",
-            anchor="w"
+        # Add description
+        if description:
+            desc_label = ctk.CTkLabel(
+                content,
+                text=description,
+                font=ctk.CTkFont(size=11),
+                text_color="#858585",
+                cursor="hand2"
+            )
+            desc_label.pack(side="left", padx=(5, 0))
+        
+        # Set cursor for frames
+        button_frame.configure(cursor="hand2")
+        content.configure(cursor="hand2")
+        
+        # Add hover effect and click handling
+        def on_enter(e):
+            button_frame.configure(fg_color="#404040")
+        
+        def on_leave(e):
+            button_frame.configure(fg_color="#2D2D2D")
+        
+        def on_click(e):
+            if title == "Open Folder":
+                self.open_folder_dialog()
+        
+        # Bind events to all widgets in the button
+        for widget in [button_frame, content, icon_label, title_label] + ([desc_label] if description else []):
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
+            widget.bind("<Button-1>", on_click)
+        
+        return button_frame
+
+    def open_folder_dialog(self):
+        """Open a folder dialog and launch a new window with the selected folder"""
+        import tkinter.filedialog as filedialog
+        import subprocess
+        import sys
+        
+        # Open folder dialog
+        folder_path = filedialog.askdirectory(
+            title="Select Folder",
+            initialdir=os.path.expanduser("~")  # Start from user's home directory
         )
-        desc_label.pack(fill="x")
+        
+        if folder_path:
+            # Get the path to the current script
+            if getattr(sys, 'frozen', False):
+                # If we're running as a bundled exe
+                app_path = sys.executable
+            else:
+                # If we're running from source
+                app_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "marcetux.py")
+            
+            # Launch new window
+            try:
+                subprocess.Popen([sys.executable, app_path, folder_path])
+                # Close current window if it's not the main window
+                if hasattr(self.app, 'quit'):
+                    self.app.quit()
+            except Exception as e:
+                if hasattr(self.app, 'show_error_notification'):
+                    self.app.show_error_notification(f"Error opening folder: {e}")
 
     def load_pending_tasks(self, container):
         """Load and display pending tasks from SQLite database"""
