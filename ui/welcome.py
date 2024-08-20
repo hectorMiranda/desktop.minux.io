@@ -3,6 +3,7 @@ from PIL import Image
 import os
 import sqlite3
 from datetime import datetime
+import tempfile
 
 class WelcomeScreen(ctk.CTkFrame):
     def __init__(self, parent, callback):
@@ -174,10 +175,12 @@ class WelcomeScreen(ctk.CTkFrame):
         return button_frame
 
     def open_folder_dialog(self):
-        """Open a folder dialog and launch a new window with the selected folder"""
+        """Open a folder dialog and launch a new window with the selected folder as working directory"""
         import tkinter.filedialog as filedialog
         import subprocess
         import sys
+        import os
+        import tempfile
         
         # Open folder dialog
         folder_path = filedialog.askdirectory(
@@ -186,23 +189,66 @@ class WelcomeScreen(ctk.CTkFrame):
         )
         
         if folder_path:
-            # Get the path to the current script
-            if getattr(sys, 'frozen', False):
-                # If we're running as a bundled exe
-                app_path = sys.executable
-            else:
-                # If we're running from source
-                app_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "marcetux.py")
+            # Get the path to the app directory
+            app_dir = os.path.dirname(os.path.dirname(__file__))  # Parent directory of ui/
             
-            # Launch new window
+            # Create a temporary wrapper script that sets up the Python path
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+                f.write(f'''import os, sys
+
+# Get the absolute path to the app directory
+app_dir = {repr(app_dir)}
+
+# Change to app directory first
+os.chdir(app_dir)
+
+# Add app directory to Python path
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+
+# Now we can import the app
+from ui.app import App
+
+if __name__ == '__main__':
+    # Get the target folder from command line args
+    target_folder = sys.argv[1] if len(sys.argv) > 1 else None
+    
+    # Create and run the app
+    app = App(target_folder)
+    app.mainloop()
+''')
+                wrapper_path = f.name
+            
+            # Launch new window using the wrapper script
             try:
-                subprocess.Popen([sys.executable, app_path, folder_path])
+                subprocess.Popen(
+                    [sys.executable, wrapper_path, folder_path],
+                    cwd=app_dir  # Start from app directory
+                )
+                
+                # Schedule wrapper script cleanup
+                def cleanup():
+                    try:
+                        if os.path.exists(wrapper_path):
+                            os.unlink(wrapper_path)
+                    except:
+                        pass
+                
+                self.after(1000, cleanup)  # Clean up after 1 second
+                
                 # Close current window if it's not the main window
                 if hasattr(self.app, 'quit'):
                     self.app.quit()
             except Exception as e:
                 if hasattr(self.app, 'show_error_notification'):
                     self.app.show_error_notification(f"Error opening folder: {e}")
+                else:
+                    print(f"Error opening folder: {e}")
+                # Clean up wrapper script on error
+                try:
+                    os.unlink(wrapper_path)
+                except:
+                    pass
 
     def load_pending_tasks(self, container):
         """Load and display pending tasks from SQLite database"""
