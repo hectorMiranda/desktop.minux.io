@@ -3,105 +3,138 @@ import tkinter as tk
 from datetime import datetime
 
 class StatusBar(ctk.CTkFrame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, height=22, fg_color="#007ACC", **kwargs)
-        self.grid_propagate(False)
+    def __init__(self, master):
+        super().__init__(master, height=22, fg_color="#007acc", corner_radius=0)
         
-        # Configure grid
-        self.grid_columnconfigure(1, weight=1)  # Make the middle section expand
+        # Create left, middle, and right sections
+        self.left_frame = ctk.CTkFrame(self, fg_color="#007acc", corner_radius=0, height=22)
+        self.left_frame.grid(row=0, column=0, sticky="w")
+        self.left_frame.grid_propagate(False)
         
-        # Left section
-        self.left_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.left_frame.grid(row=0, column=0, sticky="w", padx=(5, 0))
-        
-        # Source control info
-        self.branch_label = self._create_status_item("main", "🔄")
-        self.errors_label = self._create_status_item("0", "⚠️")
-        self.warnings_label = self._create_status_item("0", "⚡")
-        
-        # Middle section (for notifications)
-        self.middle_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.middle_frame = ctk.CTkFrame(self, fg_color="#007acc", corner_radius=0, height=22)
         self.middle_frame.grid(row=0, column=1, sticky="ew")
+        self.middle_frame.grid_propagate(False)
         
-        self.notification_label = ctk.CTkLabel(
-            self.middle_frame,
-            text="",
-            text_color="#FFFFFF",
-            fg_color="transparent"
-        )
-        self.notification_label.grid(row=0, column=0, padx=5)
+        self.right_frame = ctk.CTkFrame(self, fg_color="#007acc", corner_radius=0, height=22)
+        self.right_frame.grid(row=0, column=2, sticky="e")
+        self.right_frame.grid_propagate(False)
         
-        # Right section
-        self.right_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.right_frame.grid(row=0, column=2, sticky="e", padx=(0, 5))
+        # Configure grid weights
+        self.grid_columnconfigure(1, weight=1)  # Middle section expands
+        self.grid_columnconfigure((0, 2), weight=0)  # Left and right sections fixed
         
-        # Editor info
-        self.encoding_label = self._create_clickable_item("UTF-8")
-        self.line_ending_label = self._create_clickable_item("LF")
-        self.file_type_label = self._create_clickable_item("Python")
-        self.cursor_pos_label = self._create_clickable_item("Ln 1, Col 1")
-        self.spaces_label = self._create_clickable_item("Spaces: 4")
+        # Initialize default items
+        self._create_default_items()
         
-    def _create_status_item(self, text, icon=None):
-        frame = ctk.CTkFrame(self.left_frame, fg_color="transparent")
-        frame.pack(side="left", padx=5)
+    def _create_default_items(self):
+        """Create default status bar items"""
+        # Left section items
+        self.branch_item = self._create_clickable_item(self.left_frame, "main", "⎇", command=self._branch_click)
+        self.sync_item = self._create_clickable_item(self.left_frame, "↻ 0 ↑0 ↓0", command=self._sync_click)
+        self.error_item = self._create_status_item(self.left_frame, "✓ 0  ⚠ 0")
+        
+        # Right section items (in reverse order as they're packed from right)
+        self.encoding_item = self._create_clickable_item(self.right_frame, "UTF-8", command=self._encoding_click)
+        self.line_ending_item = self._create_clickable_item(self.right_frame, "LF", command=self._line_ending_click)
+        self.cursor_pos_item = self._create_status_item(self.right_frame, "Ln 1, Col 1")
+        
+    def _create_status_item(self, parent, text, icon=None):
+        """Create a non-clickable status item"""
+        frame = ctk.CTkFrame(parent, fg_color="transparent", height=22)
+        frame.pack(side="left", fill="y")
+        frame.pack_propagate(False)
         
         if icon:
-            icon_label = ctk.CTkLabel(frame, text=icon, text_color="#FFFFFF")
-            icon_label.pack(side="left", padx=(0, 2))
-            
-        label = ctk.CTkLabel(frame, text=text, text_color="#FFFFFF")
-        label.pack(side="left")
-        return label
+            icon_label = ctk.CTkLabel(
+                frame,
+                text=icon,
+                font=("Segoe UI", 11, "normal"),  # VSCode's font weight
+                text_color="#ffffff",
+                width=16
+            )
+            icon_label.pack(side="left", padx=(4, 0))  # VSCode's exact padding
         
-    def _create_clickable_item(self, text):
-        btn = ctk.CTkButton(
-            self.right_frame,
+        label = ctk.CTkLabel(
+            frame,
             text=text,
-            fg_color="transparent",
-            hover_color="#1E8AD1",
-            height=22,
-            corner_radius=0,
-            command=lambda t=text: self._handle_click(t)
+            font=("Segoe UI", 11, "normal"),  # VSCode's font weight
+            text_color="#ffffff"
         )
-        btn.pack(side="left")
-        return btn
+        label.pack(side="left", padx=4)  # VSCode's exact padding
         
-    def _handle_click(self, item_type):
-        # Handle clicks on status bar items
+        return frame
+        
+    def _create_clickable_item(self, parent, text, icon=None, command=None):
+        """Create a clickable status item"""
+        frame = ctk.CTkFrame(parent, fg_color="transparent", height=22)
+        frame.pack(side="left", fill="y")
+        frame.pack_propagate(False)
+        
+        button = ctk.CTkButton(
+            frame,
+            text=icon + " " + text if icon else text,
+            font=("Segoe UI", 11, "normal"),  # VSCode's font weight
+            text_color="#ffffff",
+            fg_color="transparent",
+            hover_color="#1f8ad2",  # VSCode's exact hover color
+            corner_radius=0,
+            height=22,
+            command=command
+        )
+        button.pack(side="left", fill="y", padx=0)
+        
+        # Add separator after clickable items
+        separator = ctk.CTkFrame(parent, fg_color="#ffffff", width=1, height=14)
+        separator.pack(side="left", padx=8)  # VSCode's exact separator spacing
+        
+        return frame
+        
+    def set_cursor_position(self, text):
+        """Update cursor position display"""
+        if hasattr(self, 'cursor_pos_item'):
+            for widget in self.cursor_pos_item.winfo_children():
+                if isinstance(widget, ctk.CTkLabel):
+                    widget.configure(text=text)
+                    
+    def _branch_click(self):
+        """Handle branch item click"""
+        pass
+        
+    def _sync_click(self):
+        """Handle sync item click"""
+        pass
+        
+    def _encoding_click(self):
+        """Handle encoding item click"""
+        pass
+        
+    def _line_ending_click(self):
+        """Handle line ending item click"""
         pass
         
     def update_cursor_position(self, line, column):
         """Update the cursor position display"""
-        self.cursor_pos_label.configure(text=f"Ln {line}, Col {column}")
+        self.cursor_pos_item.winfo_children()[0].configure(text=f"Ln {line}, Col {column}")
         
     def update_file_type(self, file_type):
         """Update the file type display"""
-        self.file_type_label.configure(text=file_type)
+        self.encoding_item.winfo_children()[0].configure(text=file_type)
         
     def update_encoding(self, encoding):
         """Update the encoding display"""
-        self.encoding_label.configure(text=encoding)
+        self.encoding_item.winfo_children()[0].configure(text=encoding)
         
     def update_line_ending(self, line_ending):
         """Update the line ending display"""
-        self.line_ending_label.configure(text=line_ending)
-        
-    def update_spaces(self, spaces):
-        """Update the spaces display"""
-        self.spaces_label.configure(text=f"Spaces: {spaces}")
+        self.line_ending_item.winfo_children()[0].configure(text=line_ending)
         
     def set_warning_count(self, count):
         """Update the warning count"""
-        self.warnings_label.configure(text=str(count))
+        self.sync_item.winfo_children()[0].configure(text=f"⚡ {count}")
         
     def set_error_count(self, count):
         """Update the error count"""
-        self.errors_label.configure(text=str(count))
-        
-    def set_branch(self, branch):
-        """Update the git branch display"""
-        self.branch_label.configure(text=branch)
+        self.error_item.winfo_children()[0].configure(text=f"⚠ {count}")
         
     def show_notification(self, message, duration=3000):
         """Show a temporary notification in the status bar"""

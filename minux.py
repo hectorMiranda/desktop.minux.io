@@ -22,7 +22,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import queue
 from ui.explorer import FileExplorer
-from ui.tabs import TabView
+from ui.tabs import VSCodeTabView
 from ui.file_viewer import FileViewer
 from ui.widgets.todo import TodoWidget
 from ui.welcome import WelcomeScreen
@@ -120,206 +120,6 @@ class TerminalHandler(logging.Handler):
         # Create a custom format for the log message
         timestamp = datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
         return f"{timestamp} - {record.levelname} - {record.getMessage()}"
-
-class VSCodeTabview(ctk.CTkTabview):
-    def __init__(self, master, **kwargs):
-        # Remove the segmented button options from kwargs to prevent interference
-        for key in ["segmented_button_fg_color", "segmented_button_selected_color", 
-                   "segmented_button_unselected_color", "segmented_button_selected_hover_color",
-                   "segmented_button_unselected_hover_color"]:
-            kwargs.pop(key, None)
-            
-        kwargs["fg_color"] = "#252526"  # VSCode tab bar background
-        super().__init__(master, **kwargs)
-        
-        # Initialize tab-related attributes
-        self._tab_dict = {}
-        self._close_buttons = {}
-        
-        # Create an initial empty tab to prevent None current_name
-        initial_tab = self.add("initial")
-        self._current_name = "initial"  # Set current name explicitly
-        
-        # Configure the tab view appearance
-        self._configure_tab_view()
-        
-        # Remove the initial tab
-        self.delete("initial")
-        
-        # Configure grid weights for expansion
-        master.grid_columnconfigure(2, weight=1)
-        master.grid_rowconfigure(0, weight=1)
-        
-        # Make the tab view expand to fill available space
-        self.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
-        
-    def _configure_tab_view(self):
-        """Configure the tab view appearance and layout"""
-        # Configure the main frame
-        self.configure(corner_radius=0)
-        
-        # Configure tab bar
-        self._segmented_button.configure(
-            fg_color="#252526",
-            selected_color="#1e1e1e",
-            selected_hover_color="#1e1e1e",
-            unselected_color="#252526",
-            unselected_hover_color="#2d2d2d",
-            corner_radius=0,
-            border_width=0,
-            height=35
-        )
-        
-        # Make tabs left-aligned and ensure content fills width
-        self._segmented_button.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
-        self.grid_columnconfigure(0, weight=1)  # Make the column containing tabs expand
-        self.grid_rowconfigure(1, weight=1)  # Make the content area expand vertically
-        
-        # Configure tab content area to fill entire width and height without gaps
-        tab_view = self._segmented_button.master
-        tab_view.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
-        tab_view.grid_columnconfigure(0, weight=1)
-        tab_view.grid_rowconfigure(0, weight=1)
-        
-        # Remove internal padding and configure corner radius
-        tab_view.configure(corner_radius=0)
-        
-        # Configure scrollbar style for all tabs
-        style = ttk.Style()
-        style.configure("VSCode.Vertical.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            width=10,
-            arrowsize=0,
-            relief="flat",
-            borderwidth=0
-        )
-        style.configure("VSCode.Horizontal.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            width=10,
-            arrowsize=0,
-            relief="flat",
-            borderwidth=0
-        )
-        
-    def add(self, name: str) -> ctk.CTkFrame:
-        """Add a new tab with VSCode-like styling"""
-        if name in self._tab_dict:
-            return self._tab_dict[name]
-            
-        tab = super().add(name)
-        
-        # Configure the new tab frame to fill entire width without gaps
-        tab.grid(row=0, column=0, sticky="nsew")
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_rowconfigure(0, weight=1)
-        tab.configure(corner_radius=0)
-        
-        tab_button = self._segmented_button._buttons_dict[name]
-        
-        # Configure the tab button
-        tab_button.configure(
-            width=200,  # Fixed width for tabs
-            height=35,
-            corner_radius=0,
-            border_width=1,
-            border_color="#191919",
-            fg_color="#252526",
-            text="",  # Clear text as we'll add our own label
-            hover_color="#2d2d2d"
-        )
-        
-        # Create a container for tab content
-        container = ctk.CTkFrame(tab_button, fg_color="transparent", height=35)
-        container.place(relx=0, rely=0, relwidth=1, relheight=1)
-        container.grid_propagate(False)
-        
-        # Add label
-        label = ctk.CTkLabel(
-            container,
-            text=name,
-            text_color="#cccccc",
-            font=("Segoe UI", 11),
-            anchor="w"
-        )
-        label.grid(row=0, column=0, padx=(10, 25), sticky="w")
-        
-        # Add close button
-        close_button = ctk.CTkButton(
-            container,
-            text="×",
-            width=16,
-            height=16,
-            fg_color="transparent",
-            hover_color="#333333",
-            text_color="#cccccc",
-            font=("Segoe UI", 13),
-            corner_radius=0,
-            command=lambda: self.delete(name)
-        )
-        close_button.grid(row=0, column=1, padx=(0, 5), sticky="e")
-        
-        # Configure grid
-        container.grid_columnconfigure(0, weight=1)
-        container.grid_columnconfigure(1, weight=0)
-        
-        # Store references
-        self._close_buttons[name] = (container, close_button)
-        
-        # Update appearances
-        self._update_tab_appearances()
-        
-        return tab
-        
-    def delete(self, tab_name: str) -> None:
-        """Delete a tab and handle cleanup"""
-        if tab_name in self._close_buttons:
-            container, _ = self._close_buttons[tab_name]
-            container.destroy()
-            del self._close_buttons[tab_name]
-        
-        current = self.get()
-        tabs = list(self._tab_dict.keys())
-        next_tab = None
-        
-        if tab_name == current and len(tabs) > 1:
-            current_idx = tabs.index(tab_name)
-            next_tab = tabs[current_idx - 1] if current_idx > 0 else tabs[current_idx + 1]
-            
-        super().delete(tab_name)
-        
-        if next_tab:
-            self.set(next_tab)
-            
-        self._update_tab_appearances()
-        
-    def _update_tab_appearances(self):
-        """Update the appearance of all tabs"""
-        current = self.get()
-        for name, button in self._segmented_button._buttons_dict.items():
-            if name == current:
-                button.configure(
-                    fg_color="#1e1e1e",
-                    border_width=1,
-                    border_color="#007acc"  # Blue top border for active tab
-                )
-                if name in self._close_buttons:
-                    container, _ = self._close_buttons[name]
-                    for widget in container.winfo_children():
-                        if isinstance(widget, ctk.CTkLabel):
-                            widget.configure(text_color="#ffffff")
-            else:
-                button.configure(
-                    fg_color="#252526",
-                    border_width=1,
-                    border_color="#191919"
-                )
-                if name in self._close_buttons:
-                    container, _ = self._close_buttons[name]
-                    for widget in container.winfo_children():
-                        if isinstance(widget, ctk.CTkLabel):
-                            widget.configure(text_color="#cccccc")
 
 class VSCodeTextEditor(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
@@ -641,24 +441,24 @@ class MinuxApp(ctk.CTk):
             self.help_menu.add_command(label="About", command=self.show_about)
 
             # Configure main grid layout
-            self.grid_columnconfigure(0, weight=0)  # Activity bar - fixed width
-            self.grid_columnconfigure(1, weight=0)  # Sidebar - fixed width
+            self.grid_columnconfigure(0, weight=0, minsize=48)  # Activity bar - fixed width
+            self.grid_columnconfigure(1, weight=0, minsize=240)  # Sidebar - fixed width
             self.grid_columnconfigure(2, weight=1)  # Main content - should expand
             self.grid_rowconfigure(0, weight=1)     # Main content area should expand
             self.grid_rowconfigure(1, weight=0)     # Terminal area - fixed height
             self.grid_rowconfigure(2, weight=0)     # Notification area - fixed height
-            self.grid_rowconfigure(3, weight=0)     # Status bar - fixed height
+            self.grid_rowconfigure(3, weight=0, minsize=22)     # Status bar - fixed height
 
             # Create activity bar (leftmost)
             logger.debug("Creating activity bar")
             self.activity_bar = ctk.CTkFrame(self, fg_color="#333333", width=48, corner_radius=0)
-            self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=0, pady=0)
+            self.activity_bar.grid(row=0, column=0, rowspan=2, sticky="nsew")
             self.activity_bar.grid_propagate(False)
 
             # Create sidebar (left)
             logger.debug("Creating sidebar")
             self.sidebar = ctk.CTkFrame(self, fg_color="#252526", width=240, corner_radius=0)
-            self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0, pady=0)
+            self.sidebar.grid(row=0, column=1, rowspan=2, sticky="nsew")
             self.sidebar.grid_remove()  # Hidden by default
             self.sidebar.grid_propagate(False)  # Prevent sidebar from resizing
 
@@ -666,8 +466,8 @@ class MinuxApp(ctk.CTk):
             logger.debug("Creating tab view")
             self.tab_view = None
             try:
-                self.tab_view = VSCodeTabview(self)
-                self.tab_view.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
+                self.tab_view = VSCodeTabView(self)
+                self.tab_view.grid(row=0, column=2, sticky="nsew")
             except Exception as e:
                 logger.error(f"Failed to create tab view: {str(e)}", exc_info=True)
                 self.show_error_notification(f"Failed to create tab view: {str(e)}")
@@ -679,7 +479,7 @@ class MinuxApp(ctk.CTk):
             # Create terminal panel (bottom)
             logger.debug("Creating terminal panel")
             self.terminal_frame = ctk.CTkFrame(self, fg_color="#1e1e1e", height=200, corner_radius=0)
-            self.terminal_frame.grid(row=1, column=2, sticky="ew")
+            self.terminal_frame.grid(row=1, column=2, sticky="nsew")
             self.terminal_frame.grid_remove()  # Hide terminal by default
             self.terminal_frame.grid_propagate(False)
             self.terminal_visible = False
@@ -1714,24 +1514,26 @@ class MinuxApp(ctk.CTk):
             if "Welcome" in self.tab_view._tab_dict:
                 # Focus existing Welcome tab
                 self.tab_view.set("Welcome")
-            else:
-                # Create new Welcome tab
-                welcome_frame = self.tab_view.add("Welcome")
-                if welcome_frame is None:
-                    raise ValueError("Failed to create welcome frame")
+                return
                 
-                # Configure welcome frame
-                welcome_frame.configure(fg_color="#1e1e1e")
-                welcome_frame.grid_columnconfigure(0, weight=1)
-                welcome_frame.grid_rowconfigure(0, weight=1)
+            # Create new Welcome tab
+            welcome_frame = self.tab_view.add("Welcome")
+            if welcome_frame is None:
+                logger.error("Failed to create welcome frame")
+                raise ValueError("Failed to create welcome frame")
                 
-                # Create welcome screen
-                welcome_screen = WelcomeScreen(welcome_frame, self.handle_welcome_action)
-                welcome_screen.pack(fill="both", expand=True, padx=0, pady=0)
-                
-                # Switch to Welcome tab
-                self.tab_view.set("Welcome")
-                
+            # Configure welcome frame
+            welcome_frame.configure(fg_color="#1e1e1e")
+            welcome_frame.grid_columnconfigure(0, weight=1)
+            welcome_frame.grid_rowconfigure(0, weight=1)
+            
+            # Create welcome screen
+            welcome_screen = WelcomeScreen(welcome_frame, self.handle_welcome_action)
+            welcome_screen.pack(fill="both", expand=True, padx=0, pady=0)
+            
+            # Switch to Welcome tab
+            self.tab_view.set("Welcome")
+            
         except Exception as e:
             logger.error(f"Failed to show Welcome tab: {str(e)}")
             self.show_error_notification(f"Failed to show Welcome tab: {str(e)}")
