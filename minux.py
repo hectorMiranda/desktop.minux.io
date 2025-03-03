@@ -166,12 +166,73 @@ class VSCodeTextEditor(ctk.CTkFrame):
         )
         self.text.grid(row=0, column=2, sticky="nsew", padx=0, pady=0)
         
+        # Configure scrollbar style for dark theme
+        style = ttk.Style()
+        
+        # Configure Vertical Scrollbar
+        try:
+            # Only create elements if they don't exist
+            if not style.element_names() or 'Vertical.TScrollbar.trough' not in style.element_names():
+                style.element_create('Vertical.TScrollbar.trough', 'from', 'default')
+                style.element_create('Vertical.TScrollbar.thumb', 'from', 'default')
+                
+            style.layout('Vertical.TScrollbar',
+                [('Vertical.TScrollbar.trough', {'children':
+                    [('Vertical.TScrollbar.thumb', {'expand': '1'})],
+                    'sticky': 'ns'})])
+            style.configure('Vertical.TScrollbar',
+                background='#1e1e1e',
+                darkcolor='#1e1e1e',
+                lightcolor='#1e1e1e',
+                troughcolor='#2d2d2d',
+                bordercolor='#1e1e1e',
+                arrowcolor='#1e1e1e',
+                gripcount=0)
+            style.map('Vertical.TScrollbar',
+                background=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')],
+                darkcolor=[('pressed', '#3e3e3e'),
+                          ('active', '#3e3e3e')],
+                lightcolor=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')])
+        except tk.TclError:
+            logger.debug("Vertical scrollbar elements already exist")
+                       
+        # Configure Horizontal Scrollbar
+        try:
+            # Only create elements if they don't exist
+            if not style.element_names() or 'Horizontal.TScrollbar.trough' not in style.element_names():
+                style.element_create('Horizontal.TScrollbar.trough', 'from', 'default')
+                style.element_create('Horizontal.TScrollbar.thumb', 'from', 'default')
+                
+            style.layout('Horizontal.TScrollbar',
+                [('Horizontal.TScrollbar.trough', {'children':
+                    [('Horizontal.TScrollbar.thumb', {'expand': '1'})],
+                    'sticky': 'ew'})])
+            style.configure('Horizontal.TScrollbar',
+                background='#1e1e1e',
+                darkcolor='#1e1e1e',
+                lightcolor='#1e1e1e',
+                troughcolor='#2d2d2d',
+                bordercolor='#1e1e1e',
+                arrowcolor='#1e1e1e',
+                gripcount=0)
+            style.map('Horizontal.TScrollbar',
+                background=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')],
+                darkcolor=[('pressed', '#3e3e3e'),
+                          ('active', '#3e3e3e')],
+                lightcolor=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')])
+        except tk.TclError:
+            logger.debug("Horizontal scrollbar elements already exist")
+        
         # Create scrollbars with VSCode style
         self.vsb = ttk.Scrollbar(
             self,
             orient='vertical',
             command=self.on_scroll_both,
-            style="VSCode.Vertical.TScrollbar"
+            style="Vertical.TScrollbar"
         )
         self.vsb.grid(row=0, column=3, sticky="ns")
         
@@ -179,7 +240,7 @@ class VSCodeTextEditor(ctk.CTkFrame):
             self,
             orient='horizontal',
             command=self.text.xview,
-            style="VSCode.Horizontal.TScrollbar"
+            style="Horizontal.TScrollbar"
         )
         self.hsb.grid(row=1, column=2, sticky="ew")
         
@@ -192,25 +253,6 @@ class VSCodeTextEditor(ctk.CTkFrame):
         # Configure grid weights
         self.grid_columnconfigure(2, weight=1)  # Make text widget expand horizontally
         self.grid_rowconfigure(0, weight=1)     # Make text widget expand vertically
-        
-        # Configure scrollbar style
-        style = ttk.Style()
-        style.configure("VSCode.Vertical.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            width=10,
-            arrowsize=0,
-            relief="flat",
-            borderwidth=0
-        )
-        style.configure("VSCode.Horizontal.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            width=10,
-            arrowsize=0,
-            relief="flat",
-            borderwidth=0
-        )
         
         # Bind events
         self.text.bind('<Key>', self.on_key_press)
@@ -1022,12 +1064,19 @@ class MinuxApp(ctk.CTk):
         style = ttk.Style()
         style.configure("VSCode.Vertical.TScrollbar",
             background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            width=10,
-            arrowsize=0,
-            relief="flat",
-            borderwidth=0
-        )
+            darkcolor='#1e1e1e',
+            lightcolor='#1e1e1e',
+            troughcolor='#2d2d2d',
+            bordercolor='#1e1e1e',
+            arrowcolor='#1e1e1e',
+            gripcount=0)
+        style.map('VSCode.Vertical.TScrollbar',
+            background=[('pressed', '#3e3e3e'),
+                       ('active', '#3e3e3e')],
+            darkcolor=[('pressed', '#3e3e3e'),
+                      ('active', '#3e3e3e')],
+            lightcolor=[('pressed', '#3e3e3e'),
+                       ('active', '#3e3e3e')])
         
         # Configure terminal scrollbar
         if hasattr(self.terminal, '_scrollbar'):

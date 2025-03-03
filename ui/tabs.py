@@ -16,24 +16,64 @@ class VSCodeTabView(ctk.CTkFrame):
         
         # Configure scrollbar style for dark theme
         style = ttk.Style()
-        style.configure(
-            "Dark.Vertical.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            bordercolor="#1e1e1e",
-            arrowcolor="#6b6b6b",
-            lightcolor="#1e1e1e",
-            darkcolor="#1e1e1e"
-        )
-        style.configure(
-            "Dark.Horizontal.TScrollbar",
-            background="#1e1e1e",
-            troughcolor="#2d2d2d",
-            bordercolor="#1e1e1e",
-            arrowcolor="#6b6b6b",
-            lightcolor="#1e1e1e",
-            darkcolor="#1e1e1e"
-        )
+        
+        # Configure Vertical Scrollbar
+        try:
+            # Only create elements if they don't exist
+            if not style.element_names() or 'Vertical.TScrollbar.trough' not in style.element_names():
+                style.element_create('Vertical.TScrollbar.trough', 'from', 'default')
+                style.element_create('Vertical.TScrollbar.thumb', 'from', 'default')
+                
+            style.layout('Vertical.TScrollbar',
+                [('Vertical.TScrollbar.trough', {'children':
+                    [('Vertical.TScrollbar.thumb', {'expand': '1'})],
+                    'sticky': 'ns'})])
+            style.configure('Vertical.TScrollbar',
+                background='#1e1e1e',
+                darkcolor='#1e1e1e',
+                lightcolor='#1e1e1e',
+                troughcolor='#2d2d2d',
+                bordercolor='#1e1e1e',
+                arrowcolor='#1e1e1e',
+                gripcount=0)
+            style.map('Vertical.TScrollbar',
+                background=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')],
+                darkcolor=[('pressed', '#3e3e3e'),
+                          ('active', '#3e3e3e')],
+                lightcolor=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')])
+        except tk.TclError:
+            logger.debug("Vertical scrollbar elements already exist")
+                       
+        # Configure Horizontal Scrollbar
+        try:
+            # Only create elements if they don't exist
+            if not style.element_names() or 'Horizontal.TScrollbar.trough' not in style.element_names():
+                style.element_create('Horizontal.TScrollbar.trough', 'from', 'default')
+                style.element_create('Horizontal.TScrollbar.thumb', 'from', 'default')
+                
+            style.layout('Horizontal.TScrollbar',
+                [('Horizontal.TScrollbar.trough', {'children':
+                    [('Horizontal.TScrollbar.thumb', {'expand': '1'})],
+                    'sticky': 'ew'})])
+            style.configure('Horizontal.TScrollbar',
+                background='#1e1e1e',
+                darkcolor='#1e1e1e',
+                lightcolor='#1e1e1e',
+                troughcolor='#2d2d2d',
+                bordercolor='#1e1e1e',
+                arrowcolor='#1e1e1e',
+                gripcount=0)
+            style.map('Horizontal.TScrollbar',
+                background=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')],
+                darkcolor=[('pressed', '#3e3e3e'),
+                          ('active', '#3e3e3e')],
+                lightcolor=[('pressed', '#3e3e3e'),
+                           ('active', '#3e3e3e')])
+        except tk.TclError:
+            logger.debug("Horizontal scrollbar elements already exist")
         
         # Initialize state
         self._tabs = {}  # {name: {"frame": frame, "button_container": container, "button": button, "close_button": button}}
