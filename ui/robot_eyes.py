@@ -5,32 +5,35 @@ import time
 from typing import Tuple, Dict
 
 class Emotion:
-    def __init__(self, iris_color: str, secondary_color: str, pupil_scale: float, eye_scale: float, blink_speed: int = 200):
+    def __init__(self, iris_color: str, pupil_scale: float, eye_scale: float, 
+                 blink_speed: int = 200, eyebrows: bool = False, 
+                 eyebrow_angle: float = 0, tired: bool = False):
         self.iris_color = iris_color
-        self.secondary_color = secondary_color  # For the hexagonal pattern
         self.pupil_scale = pupil_scale
         self.eye_scale = eye_scale
         self.blink_speed = blink_speed
+        self.eyebrows = eyebrows
+        self.eyebrow_angle = eyebrow_angle  # Angle in degrees
+        self.tired = tired
 
 class RobotEyes(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="#000000")
         
-        # Define emotions with cybernetic color schemes
+        # Define emotions
         self.emotions = {
-            "normal": Emotion("#00FFFF", "#007777", 0.5, 0.5),           # Cyan
-            "happy": Emotion("#00FF00", "#007700", 0.4, 0.45, 150),      # Bright green
-            "sad": Emotion("#0077FF", "#003377", 0.5, 0.4, 300),         # Deep blue
-            "angry": Emotion("#FF3300", "#771100", 0.6, 0.6, 100),       # Bright red
-            "surprised": Emotion("#FFFF00", "#777700", 0.7, 0.7, 50),    # Yellow
-            "tired": Emotion("#777777", "#333333", 0.3, 0.4, 400),       # Gray
-            "danger": Emotion("#FF0000", "#770000", 0.8, 0.6, 100),      # Pure red
-            "scanning": Emotion("#00FF77", "#007733", 0.45, 0.55, 200),  # Scanner green
-            "processing": Emotion("#FF00FF", "#770077", 0.4, 0.6, 150),  # Processing purple
+            "normal": Emotion("#4B9EEB", 0.45, 0.6),                          # Friendly blue
+            "happy": Emotion("#4B9EEB", 0.3, 0.5, 150, True, -15),           # Smaller pupils, raised eyebrows
+            "sad": Emotion("#4B9EEB", 0.4, 0.5, 300, True, 15),              # Blue, droopy eyebrows
+            "angry": Emotion("#E86D6D", 0.5, 0.65, 100, True, 45),           # Red, angled eyebrows
+            "surprised": Emotion("#4B9EEB", 0.6, 0.7, 50, True, -30),        # Large eyes, raised eyebrows
+            "tired": Emotion("#4B9EEB", 0.4, 0.4, 400, False, 0, True),      # Smaller eyes with dark circles
+            "sleepy": Emotion("#4B9EEB", 0.3, 0.3, 500, False, 0, True),     # Very small eyes with dark circles
+            "excited": Emotion("#4B9EEB", 0.4, 0.7, 100, True, -20),         # Large eyes, raised eyebrows
+            "confused": Emotion("#4B9EEB", 0.45, 0.6, 200, True, -10),       # One eyebrow up
         }
         
         self.current_emotion = "normal"
-        self.transition_time = 500
         
         # Configure grid
         self.grid_rowconfigure(0, weight=1)
@@ -42,46 +45,38 @@ class RobotEyes(ctk.CTkFrame):
         self.right_eye = Eye(self, "right")
         
         # Position eyes
-        self.left_eye.grid(row=0, column=0, padx=100, pady=100, sticky="nsew")
-        self.right_eye.grid(row=0, column=1, padx=100, pady=100, sticky="nsew")
+        self.left_eye.grid(row=0, column=0, padx=60, pady=60, sticky="nsew")
+        self.right_eye.grid(row=0, column=1, padx=60, pady=60, sticky="nsew")
         
         # Initialize state
         self.is_blinking = False
-        self.scanning_mode = False
         
         # Start animations
         self.animate_eyes()
         self.blink_eyes()
         self.change_emotion()
-        self.pulse_effect()
-
-    def pulse_effect(self):
-        """Create a subtle pulsing effect"""
-        for eye in [self.left_eye, self.right_eye]:
-            eye.pulse()
-        self.after(2000, self.pulse_effect)
-
+    
     def animate_eyes(self):
         """Smoothly move eyes every few seconds"""
         if self.current_emotion == "surprised":
             # Wide-eyed stare
             target_x = 0
             target_y = 0
-        elif self.current_emotion == "tired":
+        elif self.current_emotion == "tired" or self.current_emotion == "sleepy":
             # Droopy eyes
             target_y = 0.2
             target_x = random.uniform(-0.1, 0.1)
-        elif self.current_emotion == "love":
-            # Gentle upward gaze
-            target_y = -0.1
-            target_x = random.uniform(-0.1, 0.1)
+        elif self.current_emotion == "confused":
+            # Look around more randomly
+            target_x = random.uniform(-0.3, 0.3)
+            target_y = random.uniform(-0.3, 0.3)
         else:
             # Normal random movement
-            target_x = random.uniform(-0.5, 0.5)
-            target_y = random.uniform(-0.5, 0.5)
+            target_x = random.uniform(-0.2, 0.2)
+            target_y = random.uniform(-0.2, 0.2)
         
         # Create smooth movement using multiple steps
-        steps = 15
+        steps = 20
         current_x = self.left_eye.current_x
         current_y = self.left_eye.current_y
         
@@ -97,7 +92,10 @@ class RobotEyes(ctk.CTkFrame):
                 self.after(30, lambda: move_step(step + 1))
             else:
                 # Schedule next animation
-                delay = random.randint(1000, 3000)
+                if self.current_emotion in ["tired", "sleepy"]:
+                    delay = random.randint(2000, 4000)  # Move less when tired
+                else:
+                    delay = random.randint(1000, 3000)
                 self.after(delay, self.animate_eyes)
         
         move_step(0)
@@ -134,8 +132,8 @@ class RobotEyes(ctk.CTkFrame):
             self.after(blink_speed, self.finish_blink)
         
         # Schedule next blink
-        if self.current_emotion == "tired":
-            delay = random.randint(1000, 3000)  # Blink more frequently when tired
+        if self.current_emotion in ["tired", "sleepy"]:
+            delay = random.randint(1000, 2000)  # Blink more frequently when tired
         else:
             delay = random.randint(3000, 7000)
         self.after(delay, self.blink_eyes)
@@ -150,136 +148,73 @@ class Eye(ctk.CTkFrame):
     def __init__(self, parent, side):
         super().__init__(parent, fg_color="black")
         
-        # Create the outer circular frame with metallic effect
-        self.outer_frame = ctk.CTkFrame(self, fg_color="#1a1a1a", corner_radius=1000)
-        self.outer_frame.place(relx=0.5, rely=0.5, relwidth=0.95, relheight=0.95, anchor="center")
+        self.side = side
         
-        # Create metallic ring
-        self.metal_ring = ctk.CTkFrame(self.outer_frame, fg_color="#333333", corner_radius=1000)
-        self.metal_ring.place(relx=0.5, rely=0.5, relwidth=0.9, relheight=0.9, anchor="center")
+        # Create the white part of the eye
+        self.white = ctk.CTkFrame(self, fg_color="white", corner_radius=300)
+        self.white.place(relx=0.5, rely=0.5, relwidth=0.9, relheight=0.9, anchor="center")
         
-        # Create the main eye frame (dark interior)
-        self.eye_frame = ctk.CTkFrame(self.metal_ring, fg_color="#000000", corner_radius=1000)
-        self.eye_frame.place(relx=0.5, rely=0.5, relwidth=0.9, relheight=0.9, anchor="center")
+        # Create iris
+        self.iris = ctk.CTkFrame(self.white, fg_color="#4B9EEB", corner_radius=300)
+        self.iris.place(relx=0.5, rely=0.5, relwidth=0.6, relheight=0.6, anchor="center")
         
-        # Create iris (LED ring effect) - larger and more prominent
-        self.iris = ctk.CTkFrame(self.eye_frame, fg_color="#00FFFF", corner_radius=1000)
-        self.iris.place(relx=0.5, rely=0.5, relwidth=0.7, relheight=0.7, anchor="center")
+        # Create pupil
+        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=300)
+        self.pupil.place(relx=0.5, rely=0.5, relwidth=0.45, relheight=0.45, anchor="center")
         
-        # Create mechanical iris rings
-        self.create_iris_rings()
+        # Create highlight
+        self.highlight = ctk.CTkFrame(self.iris, fg_color="white", corner_radius=300)
+        self.highlight.place(relx=0.7, rely=0.3, relwidth=0.2, relheight=0.2, anchor="center")
         
-        # Create pupil (scanner effect) - perfectly round
-        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=1000)
-        self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
+        # Create eyebrow (hidden by default)
+        self.eyebrow = ctk.CTkFrame(self, fg_color="#333333", corner_radius=5)
+        self.eyebrow.place_forget()
         
-        # Create scanning elements
-        self.create_scanning_elements()
+        # Create tired circles (hidden by default)
+        self.tired_circle = ctk.CTkFrame(self, fg_color="#D3D3D3", corner_radius=300)
+        self.tired_circle.place_forget()
         
-        # Initialize position and state
+        # Initialize position
         self.current_x = 0
         self.current_y = 0
-        self.pulse_state = 0
         self.original_height = 0.9
-        self.scan_angle = 0
-    
-    def create_mechanical_elements(self):
-        """Create decorative mechanical elements"""
-        # Create circular accent lines
-        angles = [30, 150, 270]  # Angles for accent lines
-        for angle in angles:
-            line = ctk.CTkFrame(self.outer_frame, fg_color="#333333", corner_radius=0)
-            rad = math.radians(angle)
-            cx, cy = 0.5, 0.5  # Center point
-            r = 0.48  # Radius
-            x = cx + r * math.cos(rad)
-            y = cy + r * math.sin(rad)
-            line.place(relx=x, rely=y, relwidth=0.02, relheight=0.15, anchor="center")
-            line.rotate(angle)  # Note: This is conceptual, CTkFrame doesn't actually have rotate
-    
-    def create_iris_rings(self):
-        """Create concentric mechanical rings in the iris"""
-        # Create multiple thin rings with increasing radius
-        for i in range(3):
-            ring = ctk.CTkFrame(self.iris, fg_color="#111111", corner_radius=1000)
-            size = 0.85 - (i * 0.2)
-            ring.place(relx=0.5, rely=0.5, relwidth=size, relheight=size, anchor="center")
-    
-    def create_scanning_elements(self):
-        """Create scanning effect elements"""
-        # Create main scanner line
-        self.scanner = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
-        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.02, anchor="center")
-        
-        # Create secondary scanner elements
-        self.scanner_dot1 = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
-        self.scanner_dot1.place(relx=0.3, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
-        
-        self.scanner_dot2 = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
-        self.scanner_dot2.place(relx=0.7, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
-    
-    def pulse(self):
-        """Create a subtle pulsing effect"""
-        self.pulse_state = (self.pulse_state + 1) % 100
-        brightness = abs(math.sin(self.pulse_state / 50 * math.pi))
-        
-        # Update iris brightness
-        current_color = self.iris.cget("fg_color")
-        if isinstance(current_color, str):
-            base_color = current_color
-        else:
-            base_color = current_color[1]  # Use the non-dark mode color
-        
-        # Create a dimmer version of the color
-        r = int(int(base_color[1:3], 16) * brightness)
-        g = int(int(base_color[3:5], 16) * brightness)
-        b = int(int(base_color[5:7], 16) * brightness)
-        
-        new_color = f"#{r:02x}{g:02x}{b:02x}"
-        self.iris.configure(fg_color=new_color)
-        
-        # Rotate scanner elements
-        self.scan_angle = (self.scan_angle + 5) % 360
-        # Note: In a real implementation, we'd need to use a canvas or other widget that supports rotation
     
     def move_to(self, target_x, target_y):
-        """Move the eye with mechanical precision"""
-        new_x = max(-0.15, min(0.15, target_x))
-        new_y = max(-0.15, min(0.15, target_y))
+        """Move the eye smoothly"""
+        new_x = max(-0.2, min(0.2, target_x))
+        new_y = max(-0.2, min(0.2, target_y))
         
-        # Move iris with a slight mechanical delay
+        # Move iris and contents
         self.iris.place(
             relx=0.5 + new_x,
             rely=0.5 + new_y,
-            relwidth=0.7,
-            relheight=0.7,
+            relwidth=0.6,
+            relheight=0.6,
             anchor="center"
         )
         
-        # Move pupil and scanning elements
-        self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
-        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.02, anchor="center")
-        self.scanner_dot1.place(relx=0.3, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
-        self.scanner_dot2.place(relx=0.7, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
+        # Move pupil and highlight
+        self.pupil.place(relx=0.5, rely=0.5, relwidth=0.45, relheight=0.45, anchor="center")
+        self.highlight.place(relx=0.7, rely=0.3, relwidth=0.2, relheight=0.2, anchor="center")
         
         self.current_x = new_x
         self.current_y = new_y
     
     def transition_to_emotion(self, emotion: Emotion):
-        """Transition to new emotion with mechanical effect"""
-        # Update colors with LED-like effect
+        """Transition to a new emotional state"""
+        # Update iris color
         self.iris.configure(fg_color=emotion.iris_color)
-        self.scanner.configure(fg_color=emotion.secondary_color)
         
-        # Update sizes with mechanical precision
-        self.iris.place(
-            relx=0.5 + self.current_x,
-            rely=0.5 + self.current_y,
+        # Update eye size
+        self.white.place(
+            relx=0.5,
+            rely=0.5,
             relwidth=emotion.eye_scale,
             relheight=emotion.eye_scale,
             anchor="center"
         )
         
+        # Update pupil size
         self.pupil.place(
             relx=0.5,
             rely=0.5,
@@ -287,10 +222,51 @@ class Eye(ctk.CTkFrame):
             relheight=emotion.pupil_scale,
             anchor="center"
         )
+        
+        # Handle eyebrows
+        if emotion.eyebrows:
+            eyebrow_width = 0.8
+            eyebrow_height = 0.1
+            eyebrow_y = 0.15  # Distance above eye
+            
+            if self.side == "left":
+                if emotion.eyebrow_angle > 0:  # Sad or angry
+                    transform_angle = emotion.eyebrow_angle
+                else:  # Happy or surprised
+                    transform_angle = -emotion.eyebrow_angle
+            else:
+                if emotion.eyebrow_angle > 0:  # Sad or angry
+                    transform_angle = -emotion.eyebrow_angle
+                else:  # Happy or surprised
+                    transform_angle = emotion.eyebrow_angle
+            
+            self.eyebrow.configure(fg_color="#333333")
+            self.eyebrow.place(
+                relx=0.5,
+                rely=0.2,
+                relwidth=eyebrow_width,
+                relheight=eyebrow_height,
+                anchor="center"
+            )
+        else:
+            self.eyebrow.place_forget()
+        
+        # Handle tired appearance
+        if emotion.tired:
+            self.tired_circle.configure(fg_color="#D3D3D3")
+            self.tired_circle.place(
+                relx=0.5,
+                rely=0.8,
+                relwidth=0.7,
+                relheight=0.2,
+                anchor="center"
+            )
+        else:
+            self.tired_circle.place_forget()
     
     def blink(self):
-        """Mechanical shutter-like blink"""
-        self.eye_frame.place(
+        """Cute blinking animation"""
+        self.white.place(
             relx=0.5,
             rely=0.5,
             relwidth=0.9,
@@ -299,8 +275,8 @@ class Eye(ctk.CTkFrame):
         )
     
     def unblink(self):
-        """Mechanical shutter-like unblink"""
-        self.eye_frame.place(
+        """Return to normal eye state"""
+        self.white.place(
             relx=0.5,
             rely=0.5,
             relwidth=0.9,
