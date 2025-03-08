@@ -5,31 +5,32 @@ import time
 from typing import Tuple, Dict
 
 class Emotion:
-    def __init__(self, iris_color: str, pupil_scale: float, eye_scale: float, blink_speed: int = 200):
+    def __init__(self, iris_color: str, secondary_color: str, pupil_scale: float, eye_scale: float, blink_speed: int = 200):
         self.iris_color = iris_color
-        self.pupil_scale = pupil_scale  # Scale of pupil relative to iris
-        self.eye_scale = eye_scale      # Scale of iris relative to eye
-        self.blink_speed = blink_speed  # Blink animation duration in ms
+        self.secondary_color = secondary_color  # For the hexagonal pattern
+        self.pupil_scale = pupil_scale
+        self.eye_scale = eye_scale
+        self.blink_speed = blink_speed
 
 class RobotEyes(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="#000000")
         
-        # Define emotions
+        # Define emotions with cybernetic color schemes
         self.emotions = {
-            "normal": Emotion("#00A5FF", 0.5, 0.5),
-            "happy": Emotion("#50C878", 0.4, 0.45, 150),  # Green, smaller pupils
-            "sad": Emotion("#4169E1", 0.5, 0.4, 300),     # Royal blue, droopy eyes
-            "angry": Emotion("#FF4500", 0.6, 0.6, 100),   # Red-orange, large eyes
-            "surprised": Emotion("#FFD700", 0.7, 0.7, 50), # Gold, very large eyes
-            "tired": Emotion("#778899", 0.3, 0.4, 400),   # Gray-blue, small pupils
-            "danger": Emotion("#FF0000", 0.8, 0.6, 100),  # Red, large pupils
-            "curious": Emotion("#9370DB", 0.45, 0.55, 200), # Purple, medium eyes
-            "love": Emotion("#FF69B4", 0.4, 0.6, 150),    # Pink, heart-shaped
+            "normal": Emotion("#00FFFF", "#007777", 0.5, 0.5),           # Cyan
+            "happy": Emotion("#00FF00", "#007700", 0.4, 0.45, 150),      # Bright green
+            "sad": Emotion("#0077FF", "#003377", 0.5, 0.4, 300),         # Deep blue
+            "angry": Emotion("#FF3300", "#771100", 0.6, 0.6, 100),       # Bright red
+            "surprised": Emotion("#FFFF00", "#777700", 0.7, 0.7, 50),    # Yellow
+            "tired": Emotion("#777777", "#333333", 0.3, 0.4, 400),       # Gray
+            "danger": Emotion("#FF0000", "#770000", 0.8, 0.6, 100),      # Pure red
+            "scanning": Emotion("#00FF77", "#007733", 0.45, 0.55, 200),  # Scanner green
+            "processing": Emotion("#FF00FF", "#770077", 0.4, 0.6, 150),  # Processing purple
         }
         
         self.current_emotion = "normal"
-        self.transition_time = 500  # Time for emotion transitions in ms
+        self.transition_time = 500
         
         # Configure grid
         self.grid_rowconfigure(0, weight=1)
@@ -40,20 +41,26 @@ class RobotEyes(ctk.CTkFrame):
         self.left_eye = Eye(self, "left")
         self.right_eye = Eye(self, "right")
         
-        # Position eyes with more space between them
-        self.left_eye.grid(row=0, column=0, padx=80, pady=80, sticky="nsew")
-        self.right_eye.grid(row=0, column=1, padx=80, pady=80, sticky="nsew")
+        # Position eyes
+        self.left_eye.grid(row=0, column=0, padx=100, pady=100, sticky="nsew")
+        self.right_eye.grid(row=0, column=1, padx=100, pady=100, sticky="nsew")
         
         # Initialize state
         self.is_blinking = False
-        self.blink_start = 0
-        self.blink_duration = 200
+        self.scanning_mode = False
         
         # Start animations
         self.animate_eyes()
         self.blink_eyes()
         self.change_emotion()
-    
+        self.pulse_effect()
+
+    def pulse_effect(self):
+        """Create a subtle pulsing effect"""
+        for eye in [self.left_eye, self.right_eye]:
+            eye.pulse()
+        self.after(2000, self.pulse_effect)
+
     def animate_eyes(self):
         """Smoothly move eyes every few seconds"""
         if self.current_emotion == "surprised":
@@ -120,7 +127,6 @@ class RobotEyes(ctk.CTkFrame):
         """Periodically blink the eyes"""
         if not self.is_blinking:
             self.is_blinking = True
-            self.blink_start = time.time() * 1000
             self.left_eye.blink()
             self.right_eye.blink()
             # Use emotion-specific blink speed
@@ -142,69 +148,107 @@ class RobotEyes(ctk.CTkFrame):
 
 class Eye(ctk.CTkFrame):
     def __init__(self, parent, side):
-        super().__init__(parent, fg_color="black", corner_radius=300)
+        super().__init__(parent, fg_color="black")
         
-        # Configure grid
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
+        # Create the outer hexagonal frame
+        self.outer_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
+        self.outer_frame.place(relx=0.5, rely=0.5, relwidth=0.95, relheight=0.95, anchor="center")
         
-        # Create eye components with smoother corners
-        self.white = ctk.CTkFrame(self, fg_color="white", corner_radius=280)
-        self.white.place(relx=0.5, rely=0.5, relwidth=0.93, relheight=0.93, anchor="center")
+        # Create mechanical elements (decorative lines)
+        self.create_mechanical_elements()
         
-        # Create iris (colored part)
-        self.iris = ctk.CTkFrame(self.white, fg_color="#00A5FF", corner_radius=140)
-        self.iris.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
+        # Create the main eye components
+        self.eye_frame = ctk.CTkFrame(self.outer_frame, fg_color="#222222", corner_radius=0)
+        self.eye_frame.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.8, anchor="center")
         
-        # Create pupil (black center)
-        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=70)
+        # Create iris (LED ring effect)
+        self.iris = ctk.CTkFrame(self.eye_frame, fg_color="#00FFFF", corner_radius=0)
+        self.iris.place(relx=0.5, rely=0.5, relwidth=0.7, relheight=0.7, anchor="center")
+        
+        # Create inner mechanical rings
+        self.create_iris_rings()
+        
+        # Create pupil (scanner effect)
+        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=0)
         self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
         
-        # Add highlight (makes the eye look more realistic)
-        self.highlight = ctk.CTkFrame(self.iris, fg_color="white", corner_radius=20)
-        self.highlight.place(relx=0.7, rely=0.3, relwidth=0.15, relheight=0.15, anchor="center")
+        # Create scanner line
+        self.scanner = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=0)
+        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.05, anchor="center")
         
-        # Add secondary highlight for more depth
-        self.highlight2 = ctk.CTkFrame(self.iris, fg_color="white", corner_radius=10)
-        self.highlight2.place(relx=0.3, rely=0.7, relwidth=0.1, relheight=0.1, anchor="center")
-        
-        # Initialize position
+        # Initialize position and state
         self.current_x = 0
         self.current_y = 0
+        self.pulse_state = 0
+        self.original_height = 0.8
+    
+    def create_mechanical_elements(self):
+        """Create decorative mechanical elements"""
+        # Create corner brackets
+        for i in range(4):
+            angle = i * 90
+            line = ctk.CTkFrame(self.outer_frame, fg_color="#333333", corner_radius=0)
+            if i % 2 == 0:
+                line.place(relx=0.1 + (i//2)*0.8, rely=0.05, relwidth=0.02, relheight=0.2)
+            else:
+                line.place(relx=0.05, rely=0.1 + ((i-1)//2)*0.8, relwidth=0.2, relheight=0.02)
+    
+    def create_iris_rings(self):
+        """Create concentric mechanical rings in the iris"""
+        # Create multiple thin rings
+        for i in range(3):
+            ring = ctk.CTkFrame(self.iris, fg_color="#111111", corner_radius=0)
+            size = 0.8 - (i * 0.2)
+            ring.place(relx=0.5, rely=0.5, relwidth=size, relheight=size, anchor="center")
+    
+    def pulse(self):
+        """Create a subtle pulsing effect"""
+        self.pulse_state = (self.pulse_state + 1) % 100
+        brightness = abs(math.sin(self.pulse_state / 50 * math.pi))
         
-        # Store original heights for blinking
-        self.original_height = 0.93
+        # Update iris brightness
+        current_color = self.iris.cget("fg_color")
+        if isinstance(current_color, str):
+            base_color = current_color
+        else:
+            base_color = current_color[1]  # Use the non-dark mode color
+        
+        # Create a dimmer version of the color
+        r = int(int(base_color[1:3], 16) * brightness)
+        g = int(int(base_color[3:5], 16) * brightness)
+        b = int(int(base_color[5:7], 16) * brightness)
+        
+        new_color = f"#{r:02x}{g:02x}{b:02x}"
+        self.iris.configure(fg_color=new_color)
     
     def move_to(self, target_x, target_y):
-        """Move the eye to look at a target position"""
-        # Calculate new position (limit movement range)
-        new_x = max(-0.2, min(0.2, target_x))
-        new_y = max(-0.2, min(0.2, target_y))
+        """Move the eye with mechanical precision"""
+        new_x = max(-0.15, min(0.15, target_x))
+        new_y = max(-0.15, min(0.15, target_y))
         
-        # Update iris position
+        # Move iris with a slight mechanical delay
         self.iris.place(
             relx=0.5 + new_x,
             rely=0.5 + new_y,
-            relwidth=0.5,
-            relheight=0.5,
+            relwidth=0.7,
+            relheight=0.7,
             anchor="center"
         )
         
-        # Update pupil and highlights
+        # Move pupil and scanner
         self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
-        self.highlight.place(relx=0.7, rely=0.3, relwidth=0.15, relheight=0.15, anchor="center")
-        self.highlight2.place(relx=0.3, rely=0.7, relwidth=0.1, relheight=0.1, anchor="center")
+        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.05, anchor="center")
         
-        # Store current position
         self.current_x = new_x
         self.current_y = new_y
     
     def transition_to_emotion(self, emotion: Emotion):
-        """Smoothly transition to a new emotional state"""
-        # Update iris color
+        """Transition to new emotion with mechanical effect"""
+        # Update colors with LED-like effect
         self.iris.configure(fg_color=emotion.iris_color)
+        self.scanner.configure(fg_color=emotion.secondary_color)
         
-        # Update sizes
+        # Update sizes with mechanical precision
         self.iris.place(
             relx=0.5 + self.current_x,
             rely=0.5 + self.current_y,
@@ -222,21 +266,21 @@ class Eye(ctk.CTkFrame):
         )
     
     def blink(self):
-        """Start blinking animation"""
-        self.white.place(
+        """Mechanical shutter-like blink"""
+        self.eye_frame.place(
             relx=0.5,
             rely=0.5,
-            relwidth=0.93,
+            relwidth=0.8,
             relheight=0.1,
             anchor="center"
         )
     
     def unblink(self):
-        """End blinking animation"""
-        self.white.place(
+        """Mechanical shutter-like unblink"""
+        self.eye_frame.place(
             relx=0.5,
             rely=0.5,
-            relwidth=0.93,
+            relwidth=0.8,
             relheight=self.original_height,
             anchor="center"
         )
