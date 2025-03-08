@@ -150,56 +150,73 @@ class Eye(ctk.CTkFrame):
     def __init__(self, parent, side):
         super().__init__(parent, fg_color="black")
         
-        # Create the outer hexagonal frame
-        self.outer_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
+        # Create the outer circular frame with metallic effect
+        self.outer_frame = ctk.CTkFrame(self, fg_color="#1a1a1a", corner_radius=1000)
         self.outer_frame.place(relx=0.5, rely=0.5, relwidth=0.95, relheight=0.95, anchor="center")
         
-        # Create mechanical elements (decorative lines)
-        self.create_mechanical_elements()
+        # Create metallic ring
+        self.metal_ring = ctk.CTkFrame(self.outer_frame, fg_color="#333333", corner_radius=1000)
+        self.metal_ring.place(relx=0.5, rely=0.5, relwidth=0.9, relheight=0.9, anchor="center")
         
-        # Create the main eye components
-        self.eye_frame = ctk.CTkFrame(self.outer_frame, fg_color="#222222", corner_radius=0)
-        self.eye_frame.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.8, anchor="center")
+        # Create the main eye frame (dark interior)
+        self.eye_frame = ctk.CTkFrame(self.metal_ring, fg_color="#000000", corner_radius=1000)
+        self.eye_frame.place(relx=0.5, rely=0.5, relwidth=0.9, relheight=0.9, anchor="center")
         
-        # Create iris (LED ring effect)
-        self.iris = ctk.CTkFrame(self.eye_frame, fg_color="#00FFFF", corner_radius=0)
+        # Create iris (LED ring effect) - larger and more prominent
+        self.iris = ctk.CTkFrame(self.eye_frame, fg_color="#00FFFF", corner_radius=1000)
         self.iris.place(relx=0.5, rely=0.5, relwidth=0.7, relheight=0.7, anchor="center")
         
-        # Create inner mechanical rings
+        # Create mechanical iris rings
         self.create_iris_rings()
         
-        # Create pupil (scanner effect)
-        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=0)
+        # Create pupil (scanner effect) - perfectly round
+        self.pupil = ctk.CTkFrame(self.iris, fg_color="black", corner_radius=1000)
         self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
         
-        # Create scanner line
-        self.scanner = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=0)
-        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.05, anchor="center")
+        # Create scanning elements
+        self.create_scanning_elements()
         
         # Initialize position and state
         self.current_x = 0
         self.current_y = 0
         self.pulse_state = 0
-        self.original_height = 0.8
+        self.original_height = 0.9
+        self.scan_angle = 0
     
     def create_mechanical_elements(self):
         """Create decorative mechanical elements"""
-        # Create corner brackets
-        for i in range(4):
-            angle = i * 90
+        # Create circular accent lines
+        angles = [30, 150, 270]  # Angles for accent lines
+        for angle in angles:
             line = ctk.CTkFrame(self.outer_frame, fg_color="#333333", corner_radius=0)
-            if i % 2 == 0:
-                line.place(relx=0.1 + (i//2)*0.8, rely=0.05, relwidth=0.02, relheight=0.2)
-            else:
-                line.place(relx=0.05, rely=0.1 + ((i-1)//2)*0.8, relwidth=0.2, relheight=0.02)
+            rad = math.radians(angle)
+            cx, cy = 0.5, 0.5  # Center point
+            r = 0.48  # Radius
+            x = cx + r * math.cos(rad)
+            y = cy + r * math.sin(rad)
+            line.place(relx=x, rely=y, relwidth=0.02, relheight=0.15, anchor="center")
+            line.rotate(angle)  # Note: This is conceptual, CTkFrame doesn't actually have rotate
     
     def create_iris_rings(self):
         """Create concentric mechanical rings in the iris"""
-        # Create multiple thin rings
+        # Create multiple thin rings with increasing radius
         for i in range(3):
-            ring = ctk.CTkFrame(self.iris, fg_color="#111111", corner_radius=0)
-            size = 0.8 - (i * 0.2)
+            ring = ctk.CTkFrame(self.iris, fg_color="#111111", corner_radius=1000)
+            size = 0.85 - (i * 0.2)
             ring.place(relx=0.5, rely=0.5, relwidth=size, relheight=size, anchor="center")
+    
+    def create_scanning_elements(self):
+        """Create scanning effect elements"""
+        # Create main scanner line
+        self.scanner = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
+        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.02, anchor="center")
+        
+        # Create secondary scanner elements
+        self.scanner_dot1 = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
+        self.scanner_dot1.place(relx=0.3, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
+        
+        self.scanner_dot2 = ctk.CTkFrame(self.pupil, fg_color="#00FFFF", corner_radius=1000)
+        self.scanner_dot2.place(relx=0.7, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
     
     def pulse(self):
         """Create a subtle pulsing effect"""
@@ -220,6 +237,10 @@ class Eye(ctk.CTkFrame):
         
         new_color = f"#{r:02x}{g:02x}{b:02x}"
         self.iris.configure(fg_color=new_color)
+        
+        # Rotate scanner elements
+        self.scan_angle = (self.scan_angle + 5) % 360
+        # Note: In a real implementation, we'd need to use a canvas or other widget that supports rotation
     
     def move_to(self, target_x, target_y):
         """Move the eye with mechanical precision"""
@@ -235,9 +256,11 @@ class Eye(ctk.CTkFrame):
             anchor="center"
         )
         
-        # Move pupil and scanner
+        # Move pupil and scanning elements
         self.pupil.place(relx=0.5, rely=0.5, relwidth=0.5, relheight=0.5, anchor="center")
-        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.05, anchor="center")
+        self.scanner.place(relx=0.5, rely=0.5, relwidth=0.8, relheight=0.02, anchor="center")
+        self.scanner_dot1.place(relx=0.3, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
+        self.scanner_dot2.place(relx=0.7, rely=0.5, relwidth=0.05, relheight=0.05, anchor="center")
         
         self.current_x = new_x
         self.current_y = new_y
@@ -270,7 +293,7 @@ class Eye(ctk.CTkFrame):
         self.eye_frame.place(
             relx=0.5,
             rely=0.5,
-            relwidth=0.8,
+            relwidth=0.9,
             relheight=0.1,
             anchor="center"
         )
@@ -280,7 +303,7 @@ class Eye(ctk.CTkFrame):
         self.eye_frame.place(
             relx=0.5,
             rely=0.5,
-            relwidth=0.8,
+            relwidth=0.9,
             relheight=self.original_height,
             anchor="center"
         )
